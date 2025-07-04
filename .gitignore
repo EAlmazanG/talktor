@@ -1,3 +1,5 @@
 openai_setup.py
 .DS_Store
 *.pyc
+talktor-env/*
+/talktor-env
