@@ -13,15 +13,15 @@ import websocket
 import sys
 from pathlib import Path
 
-# Asegurarse de que el directorio raíz del proyecto esté en el path de Python
+# Make sure the project root directory is in the Python path
 script_path = Path(os.path.abspath(__file__))
-repo_root = str(script_path.parent.parent)  # Subir un nivel desde poc/ a la raíz
+repo_root = str(script_path.parent.parent)  # Go up one level from poc/ to the root
 if repo_root not in sys.path:
     sys.path.append(repo_root)
 
 import openai_setup
 
-# Set up SOCKS5 proxy (comentar esta línea si no estás usando un proxy)
+# Set up SOCKS5 proxy (comment this line if you're not using a proxy)
 # socket.socket = socks.socksocket
 
 # Use the provided OpenAI API key and URL
@@ -61,18 +61,18 @@ def mic_callback(in_data, frame_count, time_info, status):
     global mic_on_at, mic_active
 
     if mic_active != True:
-        print('🎙️🟢 Mic active')
+        print('Mic activated')
         mic_active = True
     mic_queue.put(in_data)
 
     # if time.time() > mic_on_at:
     #     if mic_active != True:
-    #         print('🎙️🟢 Mic active')
+    #         print('Mic activated')
     #         mic_active = True
     #     mic_queue.put(in_data)
     # else:
     #     if mic_active != False:
-    #         print('🎙️🔴 Mic suppressed')
+    #         print('Mic suppressed')
     #         mic_active = False
 
     return (None, pyaudio.paContinue)
@@ -118,6 +118,8 @@ def speaker_callback(in_data, frame_count, time_info, status):
 # Function to receive audio data from the WebSocket and process events
 def receive_audio_from_websocket(ws):
     global audio_buffer
+    user_transcript = ""
+    ai_transcript = ""
 
     try:
         while not stop_event.is_set():
@@ -144,6 +146,28 @@ def receive_audio_from_websocket(ws):
                     print('🔵 Speech started, clearing buffer and stopping playback.')
                     clear_audio_buffer()
                     stop_audio_playback()
+                
+                # Capture user transcription
+                elif event_type == 'conversation.item.input_audio_transcription.delta':
+                    if 'delta' in message:
+                        user_transcript += message['delta']
+                        print(f'👤 User: {user_transcript}')
+                
+                # User transcription completion
+                elif event_type == 'conversation.item.input_audio_transcription.completed':
+                    print(f'👤 Complete user transcription: {user_transcript}')
+                    user_transcript = ""  # Reset for next input
+                
+                # Capture LLM response transcription
+                elif event_type == 'response.audio_transcript.delta':
+                    if 'delta' in message:
+                        ai_transcript += message['delta']
+                        print(f'🤖 AI: {ai_transcript}')
+                
+                # LLM transcription completion
+                elif event_type == 'response.audio_transcript.done':
+                    print(f'🤖 Complete AI transcription: {ai_transcript}')
+                    ai_transcript = ""  # Reset for next response
 
                 elif event_type == 'response.audio.done':
                     print('🔵 AI finished speaking.')
@@ -272,7 +296,7 @@ def send_fc_session_update(ws):
 
     # Convert the session config to a JSON string
     session_config_json = json.dumps(session_config)
-    print(f"Send FC session update: {session_config_json}")
+    print(f"Sending session update: {session_config_json}")
 
     # Send the JSON configuration through the WebSocket
     try:
