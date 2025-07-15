@@ -3,3 +3,4 @@ openai_setup.py
 *.pyc
 talktor-env/
 /talktor-env
+.env
