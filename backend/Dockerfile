@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Asegurarse de que uvicorn esté instalado
+RUN pip install --no-cache-dir uvicorn fastapi
+
 # Copy the backend directory
 COPY . .
 
