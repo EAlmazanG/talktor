@@ -4,9 +4,8 @@
 echo "Waiting for database to be ready..."
 sleep 5
 
-# Run migrations
-echo "Running database migrations..."
-alembic upgrade head
+# Database is ready to use
+echo "Database ready, no migrations needed..."
 
 # Start the application
 echo "Starting the application..."

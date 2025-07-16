@@ -27,10 +27,20 @@ sleep 5
 # Configure environment variables for local development
 export POSTGRES_HOST=localhost
 
-# Run database migrations
-echo -e "${YELLOW}Running database migrations...${NC}"
+# Change to backend directory
 cd backend
-alembic upgrade head || echo -e "${YELLOW}Note: Some tables may already exist, continuing...${NC}"
+
+# Database is ready to use
+echo -e "${GREEN}Database ready for development${NC}"
+
+# Check if port 8000 is in use and kill the process if needed
+echo -e "${YELLOW}Checking if port 8000 is already in use...${NC}"
+PORT_PID=$(lsof -i :8000 -sTCP:LISTEN -t 2>/dev/null)
+if [ ! -z "$PORT_PID" ]; then
+    echo -e "${YELLOW}Port 8000 is in use by PID $PORT_PID. Attempting to kill...${NC}"
+    kill $PORT_PID 2>/dev/null || echo -e "${YELLOW}Could not kill process. You may need to manually free port 8000.${NC}"
+    sleep 2
+fi
 
 # Start the backend with uvicorn
 echo -e "${GREEN}Starting backend in development mode...${NC}"

@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir uvicorn fastapi sqlalchemy psycopg2-binary python-dotenv alembic
+RUN pip install --no-cache-dir uvicorn fastapi sqlalchemy psycopg2-binary python-dotenv
 
 # Copy the backend directory
 COPY . .
