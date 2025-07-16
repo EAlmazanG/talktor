@@ -4,3 +4,4 @@ openai_setup.py
 talktor-env/
 /talktor-env
 .env
+/.windsurf
