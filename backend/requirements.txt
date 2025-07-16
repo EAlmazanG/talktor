@@ -49,3 +49,6 @@ typing-inspection==0.4.1
 typing_extensions==4.14.1
 wcwidth==0.2.13
 websocket-client==1.8.0
+sqlalchemy==2.0.29
+psycopg2-binary==2.9.9
+alembic==1.13.1

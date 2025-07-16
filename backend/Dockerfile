@@ -13,9 +13,13 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir uvicorn fastapi sqlalchemy psycopg2-binary
+RUN pip install --no-cache-dir uvicorn fastapi sqlalchemy psycopg2-binary python-dotenv alembic
 
 # Copy the backend directory
 COPY . .
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Make the start script executable
+RUN chmod +x /app/start.sh
+
+# Run the start script
+CMD ["/app/start.sh"]

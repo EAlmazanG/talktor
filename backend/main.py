@@ -32,8 +32,8 @@ class TestTable(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
 
-# Create tables in the database
-Base.metadata.create_all(bind=engine)
+# Tables are now managed by Alembic migrations
+# Base.metadata.create_all(bind=engine) - No longer needed
 
 # Pydantic model for API request/response
 class TestItem(BaseModel):
