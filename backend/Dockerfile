@@ -2,6 +2,15 @@ FROM python:3.12.11-slim
 
 WORKDIR /app
 
+# Instalar dependencias necesarias para compilar PyAudio
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libasound2-dev \
+    portaudio19-dev \
+    python3-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy requirements.txt from the current directory
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
