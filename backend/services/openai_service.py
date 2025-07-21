@@ -10,9 +10,11 @@ from typing import Dict, Any, Callable, Optional
 import logging
 
 from core.config import settings
+from core.logging import get_logger
+from core.colors import colorize_session_log, Colors, colorize
 from .session_state import SessionState
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OpenAIService:
@@ -102,7 +104,7 @@ Remember: You're helping someone learn English through conversation practice."""
             )
             
             session_state.websocket_connection = ws
-            logger.info(f"Connected to OpenAI WebSocket for session {session_state.session_id}")
+            logger.info(colorize_session_log(f"🔗 Connected to OpenAI WebSocket for session {session_state.session_id}"))
             return ws
             
         except Exception as e:
@@ -125,7 +127,7 @@ Remember: You're helping someone learn English through conversation practice."""
                 session_state.websocket_connection.send,
                 config_json
             )
-            logger.info(f"Session config sent for session {session_state.session_id}")
+            logger.info(colorize_session_log(f"⚙️ Session config sent for session {session_state.session_id}"))
         except Exception as e:
             logger.error(f"Failed to send session config: {e}")
             raise

@@ -6,13 +6,14 @@ import base64
 import json
 from typing import Dict, Any, Optional
 import logging
-
+from core.logging import get_logger
+from core.colors import colorize_audio_log, colorize_session_log, Colors, colorize
 from services.session_state import SessionState, session_manager
 from services.openai_service import OpenAIService
 from services.audio_service import AudioService
 from services.conversation_service import ConversationService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RealtimeAgent:
@@ -53,7 +54,7 @@ class RealtimeAgent:
             self.session_state.topic = topic
             self.session_state.mode = mode
             
-            logger.info(f"Starting conversation for session {self.session_id}")
+            logger.info(colorize_session_log(f"🚀 Starting conversation for session {self.session_id}"))
             
             # Connect to OpenAI WebSocket
             ws = await self.openai_service.connect_websocket(self.session_state)
@@ -143,7 +144,7 @@ class RealtimeAgent:
     
     async def _handle_session_created(self):
         """Handle session created event"""
-        logger.info(f"OpenAI session created for {self.session_id}")
+        logger.info(colorize_session_log(f"✅ OpenAI session created for {self.session_id}"))
         await self.openai_service.send_session_config(self.session_state)
     
     async def _handle_audio_delta(self, message: Dict[str, Any]):
@@ -153,7 +154,7 @@ class RealtimeAgent:
     
     async def _handle_speech_started(self, message: Dict[str, Any]):
         """Handle speech started event - user interruption detected by OpenAI"""
-        logger.info(f"🚨 USER SPEECH STARTED - clearing audio buffer for session {self.session_id}")
+        logger.info(colorize_audio_log(f"🚨 USER SPEECH STARTED - clearing audio buffer for session {self.session_id}"))
         
         # Clear audio buffer immediately to stop current playback
         self.session_state.audio_buffer.clear()
@@ -163,9 +164,9 @@ class RealtimeAgent:
             cancel_message = {"type": "response.cancel"}
             if hasattr(self.openai_service, 'send_message'):
                 await self.openai_service.send_message(self.session_state, cancel_message)
-                logger.info(f"Sent response cancellation for session {self.session_id}")
+                logger.debug(f"Sent response cancellation for session {self.session_id}")
         except Exception as e:
-            logger.warning(f"Could not cancel response: {e}")
+            logger.debug(f"Could not cancel response (this is normal): {e}")
     
     async def _handle_user_transcription_delta(self, message: Dict[str, Any]):
         """Handle user transcription delta"""
@@ -176,7 +177,7 @@ class RealtimeAgent:
     async def _handle_user_transcription_completed(self, message: Dict[str, Any]):
         """Handle completed user transcription"""
         transcript = message.get('transcript', '')
-        logger.info(f"User said: {transcript}")
+        logger.info(colorize(f"🗣️ User said: {transcript}", Colors.BRIGHT_CYAN))
         self.conversation_service.update_conversation_context(self.session_state, "user", transcript)
     
     async def _handle_ai_transcription_delta(self, message: Dict[str, Any]):
@@ -188,7 +189,7 @@ class RealtimeAgent:
     async def _handle_ai_transcription_completed(self, message: Dict[str, Any]):
         """Handle completed AI transcription"""
         transcript = message.get('transcript', '')
-        logger.info(f"AI said: {transcript}")
+        logger.info(colorize(f"🤖 AI said: {transcript}", Colors.BRIGHT_GREEN))
         self.conversation_service.update_conversation_context(self.session_state, "ai", transcript)
     
     async def _handle_function_call(self, message: Dict[str, Any]):
@@ -199,11 +200,17 @@ class RealtimeAgent:
     async def _handle_error(self, message: Dict[str, Any]):
         """Handle error messages from OpenAI"""
         error = message.get('error', {})
-        logger.error(f"OpenAI error: {error}")
+        error_code = error.get('code', '')
+        
+        # Some errors are expected and normal during interruptions
+        if error_code == 'response_cancel_not_active':
+            logger.debug(f"Expected OpenAI response: {error.get('message', 'No active response to cancel')}")
+        else:
+            logger.error(f"OpenAI error: {error}")
     
     async def stop_conversation(self):
         """Stop the conversation and cleanup resources"""
-        logger.info(f"Stopping conversation for session {self.session_id}")
+        logger.info(colorize_session_log(f"🛑 Stopping conversation for session {self.session_id}"))
         
         if self.session_state:
             self.session_state.stop_session()

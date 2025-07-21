@@ -6,11 +6,12 @@ import base64
 import pyaudio
 from typing import Callable, Optional
 import logging
-
 from core.config import settings
+from core.logging import get_logger
+from core.colors import colorize_audio_log, Colors, colorize
 from .session_state import SessionState
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AudioService:
@@ -101,7 +102,7 @@ class AudioService:
         mic_stream.start_stream()
         speaker_stream.start_stream()
         
-        logger.info(f"Audio streams started for session {session_state.session_id}")
+        logger.info(colorize_audio_log(f"🎧 Audio streams started for session {session_state.session_id}"))
         
         return mic_stream, speaker_stream
     
