@@ -19,13 +19,16 @@ repo_root = str(script_path.parent.parent)  # Go up one level from poc/ to the r
 if repo_root not in sys.path:
     sys.path.append(repo_root)
 
-import openai_setup
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set up SOCKS5 proxy (comment this line if you're not using a proxy)
 # socket.socket = socks.socksocket
 
 # Use the provided OpenAI API key and URL
-API_KEY = openai_setup.config['key']
+API_KEY = os.getenv('OPENAI_API_KEY')
 if not API_KEY:
     raise ValueError("API key is missing. Please set the 'OPENAI_API_KEY' environment variable.")
 
