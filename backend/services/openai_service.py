@@ -150,6 +150,24 @@ Remember: You're helping someone learn English through conversation practice."""
         except Exception as e:
             logger.error(f"Error sending audio chunk: {e}")
     
+    async def send_message(self, session_state: SessionState, message_data: Dict[str, Any]):
+        """Send a generic message to OpenAI WebSocket"""
+        if not session_state.websocket_connection:
+            return
+        
+        message = json.dumps(message_data)
+        
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                session_state.websocket_connection.send,
+                message
+            )
+            logger.debug(f"Sent message to OpenAI: {message_data.get('type', 'unknown')}")
+        except Exception as e:
+            logger.error(f"Error sending message: {e}")
+    
     async def receive_messages(
         self, 
         session_state: SessionState, 

@@ -114,6 +114,9 @@ class RealtimeAgent:
             elif event_type == 'response.audio.delta':
                 await self._handle_audio_delta(message)
             
+            elif event_type == 'input_audio_buffer.speech_started':
+                await self._handle_speech_started(message)
+            
             elif event_type == 'conversation.item.input_audio_transcription.delta':
                 await self._handle_user_transcription_delta(message)
             
@@ -147,6 +150,22 @@ class RealtimeAgent:
         """Handle incoming audio data from OpenAI"""
         audio_content = base64.b64decode(message['delta'])
         self.audio_service.add_audio_to_playback_buffer(self.session_state, audio_content)
+    
+    async def _handle_speech_started(self, message: Dict[str, Any]):
+        """Handle speech started event - user interruption detected by OpenAI"""
+        logger.info(f"🚨 USER SPEECH STARTED - clearing audio buffer for session {self.session_id}")
+        
+        # Clear audio buffer immediately to stop current playback
+        self.session_state.audio_buffer.clear()
+        
+        # Optionally cancel current AI response
+        try:
+            cancel_message = {"type": "response.cancel"}
+            if hasattr(self.openai_service, 'send_message'):
+                await self.openai_service.send_message(self.session_state, cancel_message)
+                logger.info(f"Sent response cancellation for session {self.session_id}")
+        except Exception as e:
+            logger.warning(f"Could not cancel response: {e}")
     
     async def _handle_user_transcription_delta(self, message: Dict[str, Any]):
         """Handle user transcription delta"""
