@@ -262,3 +262,59 @@ Remember: You're helping someone learn English through conversation practice."""
                 logger.error(f"Error closing WebSocket connection: {e}")
             finally:
                 session_state.websocket_connection = None
+    
+    async def send_chat_completion(
+        self,
+        messages: list,
+        temperature: float = 0.7,
+        response_format: str = "json",
+        model: str = "gpt-4o"
+    ) -> str:
+        """
+        Send chat completion request to OpenAI API (non-realtime)
+        
+        Args:
+            messages: List of message objects with role and content
+            temperature: Response randomness (0.0 to 1.0)
+            response_format: Expected response format
+            model: OpenAI model to use
+            
+        Returns:
+            Response content from OpenAI
+        """
+        import openai
+        
+        try:
+            # Initialize OpenAI client
+            client = openai.AsyncOpenAI(api_key=self.api_key)
+            
+            # Prepare request parameters
+            request_params = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": 4000
+            }
+            
+            # Add response format if JSON is requested
+            if response_format == "json":
+                request_params["response_format"] = {"type": "json_object"}
+                # Ensure system message mentions JSON format
+                if messages and messages[0]["role"] == "system":
+                    if "json" not in messages[0]["content"].lower():
+                        messages[0]["content"] += "\n\nPlease respond with valid JSON format."
+            
+            logger.debug(f"Sending chat completion request with {len(messages)} messages")
+            
+            # Send request
+            response = await client.chat.completions.create(**request_params)
+            
+            # Extract content
+            content = response.choices[0].message.content
+            
+            logger.debug(f"Received chat completion response: {len(content)} characters")
+            return content
+            
+        except Exception as e:
+            logger.error(f"Error in chat completion: {e}")
+            raise
