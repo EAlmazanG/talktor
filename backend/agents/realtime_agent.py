@@ -195,8 +195,15 @@ class RealtimeAgent:
         
         logger.info(colorize(f"🗣️ User said: {transcript}", Colors.BRIGHT_CYAN))
         
-        # Only update context if we have a meaningful transcript
+        # Check for termination commands before processing
         if transcript and transcript.strip():
+            # Check if user wants to end the conversation
+            if self._is_termination_command(transcript):
+                logger.info(colorize(f"🛑 Termination command detected: {transcript}", Colors.BRIGHT_YELLOW))
+                await self._handle_conversation_termination()
+                return
+            
+            # Normal transcript processing
             self.conversation_service.update_conversation_context(self.session_state, "user", transcript)
         else:
             logger.warning("Received empty or invalid transcript")
@@ -276,3 +283,118 @@ class RealtimeAgent:
     def is_active(self) -> bool:
         """Check if the conversation is active"""
         return self.session_state is not None and self.session_state.is_active
+    
+    def _is_termination_command(self, transcript: str) -> bool:
+        """Check if the transcript contains a termination command"""
+        # Normalize the transcript for comparison - remove punctuation
+        import re
+        normalized = re.sub(r'[^\w\s]', '', transcript.lower().strip())
+        
+        if not normalized:
+            return False
+        
+        # Common termination phrases in English and Spanish
+        termination_phrases = [
+            # English
+            "stop", "end", "finish", "quit", "exit", "bye", "goodbye",
+            "stop conversation", "end conversation", "finish conversation",
+            "stop talking", "end session", "finish session",
+            "that's all", "thats all", "that's enough", "thats enough", "i'm done", "im done", "we're done", "were done",
+            "terminate", "close", "stop please", "end please",
+            "i want to stop", "i want to end", "i want to finish",
+            
+            # Spanish
+            "para", "termina", "finaliza", "sal", "salir", "adiós", "adios", "chao",
+            "para conversación", "termina conversación", "finaliza conversación",
+            "para conversacion", "termina conversacion", "finaliza conversacion",
+            "para de hablar", "termina sesión", "finaliza sesión",
+            "para de sesion", "termina sesion", "finaliza sesion",
+            "es todo", "es suficiente", "ya terminé", "ya terminamos", "ya termine",
+            "terminar", "cerrar", "para por favor", "termina por favor",
+            "quiero parar", "quiero terminar", "quiero finalizar"
+        ]
+        
+        # Check for exact matches first
+        for phrase in termination_phrases:
+            if normalized == phrase:
+                return True
+        
+        # Check if transcript starts with termination phrases
+        for phrase in termination_phrases:
+            if normalized.startswith(phrase + " "):
+                return True
+        
+        # Check for termination intent patterns
+        termination_patterns = [
+            r'^(stop|end|finish|quit|para|termina|finaliza)$',  # Single word
+            r'^(stop|end|finish|quit|para|termina|finaliza)\s+(now|please|ya|por favor)$',  # Word + modifier
+            r'^(i want to|i need to|quiero|necesito)\s+(stop|end|finish|quit|para|terminar|finalizar)$',  # Intent + action
+            r'^(please|por favor)\s+(stop|end|finish|quit|para|termina|finaliza)$',  # Polite request
+        ]
+        
+        for pattern in termination_patterns:
+            if re.match(pattern, normalized):
+                return True
+        
+        # Avoid false positives - check for context that suggests NOT termination
+        false_positive_patterns = [
+            r'\b(stop sign|stop light|stop motion|bus stop|stop watch|stop button)\b',  # "stop" in different context
+            r'\b(the end of|end of the|ending|end result|end game)\b',  # "end" in narrative context
+            r'\b(stopped|ending|finished|finishing)\b',  # Past tense forms
+            r'\b(stop by|stop over|stop in|stop at)\b',  # Phrasal verbs
+        ]
+        
+        for pattern in false_positive_patterns:
+            if re.search(pattern, normalized):
+                return False
+        
+        # Additional check: if "stop" is followed by a noun, it's likely not a termination command
+        if re.search(r'\bstop\s+(sign|light|button|watch|motion|car|bus|train|music|video|game|app)\b', normalized):
+            return False
+        
+        # For very short phrases (1-2 words), be more permissive with core termination words
+        words = normalized.split()
+        if len(words) <= 2:
+            core_termination_words = ["stop", "end", "finish", "quit", "bye", "para", "termina", "finaliza"]
+            for word in words:
+                if word in core_termination_words:
+                    return True
+        
+        return False
+    
+    async def _handle_conversation_termination(self):
+        """Handle conversation termination gracefully"""
+        try:
+            logger.info(colorize("🛑 Starting conversation termination process...", Colors.BRIGHT_YELLOW))
+            
+            # Send a farewell message to the user
+            farewell_message = {
+                "type": "response.create",
+                "response": {
+                    "modalities": ["text", "audio"],
+                    "instructions": "Say a brief, friendly goodbye to the user. Thank them for the conversation and wish them well with their English learning."
+                }
+            }
+            
+            await self.openai_service.send_message(self.session_state, farewell_message)
+            
+            # Wait a moment for the farewell to be processed
+            await asyncio.sleep(2)
+            
+            # Mark session as ending
+            if self.session_state:
+                self.session_state.is_active = False
+                logger.info("✅ Session marked as inactive")
+            
+            # Close the WebSocket connection gracefully
+            if self.openai_service and hasattr(self.openai_service, 'websocket'):
+                await self.openai_service.close_connection(self.session_state)
+                logger.info("✅ WebSocket connection closed")
+            
+            logger.info(colorize("🎯 Conversation termination completed successfully", Colors.BRIGHT_GREEN))
+            
+        except Exception as e:
+            logger.error(f"Error during conversation termination: {e}")
+            # Force close the session even if there's an error
+            if self.session_state:
+                self.session_state.is_active = False
