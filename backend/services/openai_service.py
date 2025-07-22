@@ -45,14 +45,17 @@ Remember: You're helping someone learn English through conversation practice."""
                 "voice": "alloy",
                 "input_audio_format": settings.audio_format,
                 "output_audio_format": settings.audio_format,
-                "input_audio_transcription": {
-                    "model": "whisper-1"
-                },
+                # Add transcription only if enabled
+                **({
+                    "input_audio_transcription": {
+                        "model": settings.transcription_model
+                    }
+                } if settings.enable_transcriptions else {}),
                 "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.5,
-                    "prefix_padding_ms": 300,
-                    "silence_duration_ms": 200
+                    "threshold": 0.3,
+                    "prefix_padding_ms": 500,
+                    "silence_duration_ms": 800
                 },
                 "tools": [
                     {

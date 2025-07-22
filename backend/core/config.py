@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     audio_chunk_size: int = 1024
     audio_format: str = "pcm16"
     
+    # Transcription settings
+    enable_transcriptions: bool = True
+    transcription_model: str = "whisper-1"
+    
     # Session settings
     default_session_duration_minutes: int = 5
     max_session_duration_minutes: int = 30

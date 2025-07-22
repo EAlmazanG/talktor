@@ -171,14 +171,35 @@ class RealtimeAgent:
     async def _handle_user_transcription_delta(self, message: Dict[str, Any]):
         """Handle user transcription delta"""
         delta = message.get('delta', '')
-        self.session_state.add_user_transcript(delta)
-        logger.debug(f"User transcript delta: {delta}")
+        
+        # Log full delta message for debugging
+        logger.debug(f"Full delta message: {message}")
+        
+        if delta and delta.strip():
+            self.session_state.add_user_transcript(delta)
+            logger.debug(f"User transcript delta: '{delta}'")
+        else:
+            logger.debug("Received empty delta")
     
     async def _handle_user_transcription_completed(self, message: Dict[str, Any]):
         """Handle completed user transcription"""
+        # Log the full message to debug transcription quality
+        logger.debug(f"Full transcription message: {message}")
+        
         transcript = message.get('transcript', '')
+        
+        # Also check if there's additional transcription data
+        item = message.get('item', {})
+        if item:
+            logger.debug(f"Transcription item data: {item}")
+        
         logger.info(colorize(f"🗣️ User said: {transcript}", Colors.BRIGHT_CYAN))
-        self.conversation_service.update_conversation_context(self.session_state, "user", transcript)
+        
+        # Only update context if we have a meaningful transcript
+        if transcript and transcript.strip():
+            self.conversation_service.update_conversation_context(self.session_state, "user", transcript)
+        else:
+            logger.warning("Received empty or invalid transcript")
     
     async def _handle_ai_transcription_delta(self, message: Dict[str, Any]):
         """Handle AI transcription delta"""
