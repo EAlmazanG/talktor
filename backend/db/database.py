@@ -3,7 +3,7 @@ Database configuration and connection management
 """
 import os
 from pathlib import Path
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
 from typing import Generator
@@ -106,7 +106,7 @@ def test_connection() -> bool:
     try:
         db = SessionLocal()
         # Try to execute a simple query
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         logger.info("✅ Database connection test successful")
         return True
