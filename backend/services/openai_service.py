@@ -42,7 +42,7 @@ Key guidelines:
 - Use the continue_conversation function when appropriate to extend the conversation
 
 Remember: You're helping someone learn English through conversation practice.""",
-                "voice": "alloy",
+                "voice": settings.openai_voice,
                 "input_audio_format": settings.audio_format,
                 "output_audio_format": settings.audio_format,
                 # Add transcription only if enabled
@@ -268,7 +268,7 @@ Remember: You're helping someone learn English through conversation practice."""
         messages: list,
         temperature: float = 0.7,
         response_format: str = "json",
-        model: str = "gpt-4o"
+        model: str = None
     ) -> str:
         """
         Send chat completion request to OpenAI API (non-realtime)
@@ -287,6 +287,10 @@ Remember: You're helping someone learn English through conversation practice."""
         try:
             # Initialize OpenAI client
             client = openai.AsyncOpenAI(api_key=self.api_key)
+            
+            # Use configured model if none specified
+            if model is None:
+                model = settings.openai_chat_model
             
             # Prepare request parameters
             request_params = {
