@@ -48,9 +48,16 @@ traitlets==5.14.3
 typing-inspection==0.4.1
 typing_extensions==4.14.1
 wcwidth==0.2.13
-websocket-client==1.8.0
-sqlalchemy==2.0.29
-psycopg2-binary==2.9.9
+
+# Database dependencies
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+alembic==1.14.0
+
+# FastAPI dependencies
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
-pydantic-settings==2.7.0
+pydantic-settings==2.8.1
+
+# WebSocket client
+websocket-client==1.8.0
