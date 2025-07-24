@@ -2,7 +2,7 @@
 Session state management for individual conversation sessions
 """
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -22,7 +22,10 @@ class SessionState:
     is_active: bool = True
     is_mic_active: bool = False
     
-    # Transcription tracking
+    # Transcription tracking - now using structured messages
+    messages: List[Dict[str, Any]] = field(default_factory=list)
+    
+    # Legacy fields for backward compatibility (will be deprecated)
     user_transcript: str = ""
     ai_transcript: str = ""
     
@@ -57,6 +60,48 @@ class SessionState:
     def stop_session(self):
         """Mark session as inactive"""
         self.is_active = False
+    
+    def add_message(self, role: str, content: str, timestamp: Optional[datetime] = None):
+        """Add a structured message to the conversation"""
+        if timestamp is None:
+            timestamp = datetime.now()
+        
+        message = {
+            "role": role,  # "user" or "assistant"
+            "content": content.strip(),
+            "timestamp": timestamp,
+            "order": len(self.messages) + 1
+        }
+        
+        self.messages.append(message)
+        
+        # Update legacy fields for backward compatibility
+        if role == "user":
+            self.user_transcript += content
+        elif role == "assistant":
+            self.ai_transcript += content
+    
+    def get_messages(self) -> List[Dict[str, Any]]:
+        """Get all messages in chronological order"""
+        return sorted(self.messages, key=lambda x: x["timestamp"])
+    
+    def get_conversation_json(self) -> Dict[str, Any]:
+        """Get complete conversation as structured JSON"""
+        return {
+            "session_id": self.session_id,
+            "user_id": self.user_id,
+            "started_at": self.started_at.isoformat(),
+            "duration_seconds": self.get_session_duration(),
+            "mode": self.mode,
+            "topic": self.topic,
+            "message_count": len(self.messages),
+            "messages": self.get_messages()
+        }
+    
+    def reset_messages(self):
+        """Reset all messages and transcripts"""
+        self.messages.clear()
+        self.reset_transcripts()
 
 
 class SessionManager:

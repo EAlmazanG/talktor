@@ -82,36 +82,67 @@ class ConversationService:
     
     def update_conversation_context(self, session_state: SessionState, speaker: str, text: str):
         """
-        Update conversation context for the session
+        Update conversation context for the session using structured messages
         
-        This method will be expanded in the future to:
-        - Track conversation flow
-        - Maintain context for better responses
-        - Analyze conversation patterns
+        Args:
+            session_state: Current session state
+            speaker: "user" or "ai" 
+            text: Transcript text to add
         """
-        if speaker == "user":
-            session_state.add_user_transcript(text)
-        elif speaker == "ai":
-            session_state.add_ai_transcript(text)
+        from datetime import datetime
         
-        logger.debug(f"Updated {speaker} transcript for session {session_state.session_id}")
+        # Convert speaker format to role format
+        role = "user" if speaker == "user" else "assistant"
+        
+        # Add as structured message with timestamp
+        session_state.add_message(role, text, datetime.now())
+        
+        logger.debug(f"Added {speaker} message to session {session_state.session_id}: '{text[:50]}...'")
     
     def get_conversation_summary(self, session_state: SessionState) -> Dict[str, Any]:
         """
-        Get a summary of the current conversation
+        Get a summary of the current conversation with full transcript data
         
-        Future expansion will include:
-        - Conversation analysis
-        - Key topics discussed
-        - Learning objectives met
-        - Areas for improvement
+        Returns data in the format expected by ConversationFlow:
+        - messages: List of conversation messages
+        - conversation_text: Full conversation text
+        - duration_seconds: Session duration
+        - Other metadata
         """
+        from datetime import datetime, timezone
+        
+        # Get structured messages from session state
+        messages = session_state.get_messages()
+        
+        # Convert messages to the format expected by ConversationFlow
+        formatted_messages = []
+        for msg in messages:
+            formatted_messages.append({
+                "role": msg["role"],
+                "content": msg["content"],
+                "timestamp": msg["timestamp"],
+                "order": msg["order"],
+                "confidence_score": 0.9,  # Default confidence
+                "audio_duration": None
+            })
+        
+        # Create conversation text from structured messages
+        conversation_text = ""
+        for msg in messages:
+            speaker = "USER" if msg["role"] == "user" else "AI"
+            conversation_text += f"{speaker}: {msg['content']}\n"
+        
         return {
             "session_id": session_state.session_id,
+            "messages": formatted_messages,
+            "conversation_text": conversation_text.strip(),
             "duration_seconds": session_state.get_session_duration(),
+            "message_count": len(messages),
             "user_transcript_length": len(session_state.user_transcript),
             "ai_transcript_length": len(session_state.ai_transcript),
             "is_active": session_state.is_active,
             "mode": session_state.mode,
-            "topic": session_state.topic
+            "topic": session_state.topic,
+            "status": "completed" if not session_state.is_active else "active",
+            "conversation_json": session_state.get_conversation_json()
         }

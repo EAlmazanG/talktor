@@ -2,7 +2,7 @@
 Conversation Flow Service - Integrates RealtimeAgent → StandardAgent → Database
 """
 import asyncio
-import json
+import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 import logging
@@ -11,9 +11,8 @@ from core.logging import get_logger
 from core.colors import colorize, Colors
 from agents.realtime_agent import RealtimeAgent
 from agents.standard_agent import StandardAgent
-from db.database import get_db_session, init_database
-from db.crud import SessionCRUD, TranscriptCRUD, FeedbackCRUD
-from db.models import AgentType, ConversationMode, Speaker
+from services.persistence_service import persistence_service
+from db.models import AgentType, ConversationMode
 
 logger = get_logger(__name__)
 
@@ -32,13 +31,8 @@ class ConversationFlow:
         self.realtime_agent = None
         self.standard_agent = StandardAgent()
         
-        # Initialize database
-        init_database()
-        
-        # CRUD instances
-        self.session_crud = SessionCRUD()
-        self.transcript_crud = TranscriptCRUD()
-        self.feedback_crud = FeedbackCRUD()
+        # Use centralized persistence service
+        self.persistence = persistence_service
         
         logger.info(f"🔄 ConversationFlow initialized for user: {user_id}")
     
@@ -47,27 +41,17 @@ class ConversationFlow:
         try:
             # Generate session ID if not provided
             if not session_id:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                session_id = f"session_{timestamp}"
+                session_id = str(uuid.uuid4())
             
             self.session_id = session_id
             
-            # Create database session record
-            db = get_db_session()
-            try:
-                session_data = {
-                    "session_id": session_id,
-                    "user_id": self.user_id,
-                    "agent_type": AgentType.REALTIME,
-                    "conversation_mode": ConversationMode.VOICE,
-                    "status": "active",
-                    "started_at": datetime.now(timezone.utc)
-                }
-                
-                db_session = self.session_crud.create_session(db, session_data)
-                logger.info(f"📝 Created database session: {session_id}")
-            finally:
-                db.close()
+            # Create database session record using persistence service
+            await self.persistence.create_session(
+                session_id=session_id,
+                user_id=self.user_id,
+                agent_type=AgentType.REALTIME,
+                mode=ConversationMode.FREE_TOPIC  # Updated to use existing enum
+            )
             
             # Initialize RealtimeAgent
             self.realtime_agent = RealtimeAgent(session_id=session_id, user_id=self.user_id)
@@ -91,26 +75,29 @@ class ConversationFlow:
             logger.info(colorize(f"🛑 Ending conversation: {self.session_id}", Colors.BRIGHT_YELLOW))
             
             # Get conversation summary from RealtimeAgent
-            conversation_summary = self.realtime_agent.get_conversation_summary()
+            conversation_summary = self.realtime_agent.get_session_info()
             
             # Extract conversation data
             conversation_text = conversation_summary.get("conversation_text", "")
             messages = conversation_summary.get("messages", [])
             duration = conversation_summary.get("duration_seconds", 0)
+            conversation_json = conversation_summary.get("conversation_json", {})
             
             logger.info(f"📊 Conversation summary: {len(messages)} messages, {duration}s duration")
             
-            # Save transcripts to database
-            await self._save_transcripts(messages)
-            
             # Generate feedback using StandardAgent
-            feedback_data = await self._generate_feedback(conversation_text)
+            feedback_data = await self._generate_feedback(conversation_summary)
             
-            # Save feedback to database
-            await self._save_feedback(feedback_data)
-            
-            # Update session completion
-            await self._complete_session(duration)
+            # Save complete conversation using persistence service (atomic transaction)
+            result = await self.persistence.save_complete_conversation(
+                session_id=self.session_id,
+                user_id=self.user_id,
+                conversation_json=conversation_json,
+                feedback_data=feedback_data,
+                duration_seconds=duration,
+                agent_type=AgentType.REALTIME,
+                mode=ConversationMode.FREE_TOPIC
+            )
             
             # Prepare final results
             results = {
@@ -120,7 +107,8 @@ class ConversationFlow:
                 "message_count": len(messages),
                 "conversation_text": conversation_text,
                 "feedback": feedback_data,
-                "status": "completed"
+                "status": "completed",
+                "database_result": result["summary"]
             }
             
             logger.info(colorize(f"✅ Conversation flow completed successfully: {self.session_id}", Colors.BRIGHT_GREEN))
@@ -130,51 +118,29 @@ class ConversationFlow:
             logger.error(f"❌ Error ending conversation: {e}")
             raise
     
-    async def _save_transcripts(self, messages: List[Dict[str, Any]]):
-        """Save conversation transcripts to database"""
-        try:
-            db = get_db_session()
-            try:
-                # Get session database ID
-                db_session = self.session_crud.get_session_by_id(db, self.session_id)
-                if not db_session:
-                    raise ValueError(f"Session not found: {self.session_id}")
-                
-                logger.info(f"💬 Saving {len(messages)} transcript messages...")
-                
-                for i, message in enumerate(messages):
-                    speaker = Speaker.USER if message.get("role") == "user" else Speaker.AI
-                    content = message.get("content", "")
-                    timestamp = message.get("timestamp")
-                    
-                    if content.strip():  # Only save non-empty messages
-                        transcript_data = {
-                            "session_id": db_session.id,
-                            "speaker": speaker,
-                            "content": content,
-                            "sequence_number": i + 1,
-                            "timestamp": timestamp or datetime.now(timezone.utc)
-                        }
-                        
-                        self.transcript_crud.add_transcript(db, transcript_data)
-                
-                logger.info(f"✅ Saved {len(messages)} transcript messages")
-            finally:
-                db.close()
-                
-        except Exception as e:
-            logger.error(f"❌ Error saving transcripts: {e}")
-            raise
+
     
-    async def _generate_feedback(self, conversation_text: str) -> Dict[str, Any]:
+    async def _generate_feedback(self, conversation_summary: dict) -> Dict[str, Any]:
         """Generate feedback using StandardAgent"""
         try:
             logger.info("🤖 Generating feedback with StandardAgent...")
             
+            # Extract user and AI transcripts from messages
+            messages = conversation_summary.get("messages", [])
+            user_transcript = "\n".join([msg["content"] for msg in messages if msg.get("role") == "user"])
+            ai_transcript = "\n".join([msg["content"] for msg in messages if msg.get("role") == "assistant"])
+            duration = conversation_summary.get("duration_seconds", 0)
+            
+            # Create a mock session state for StandardAgent
+            from services.session_state import SessionState
+            mock_session_state = SessionState(session_id=self.session_id)
+            
             # Use StandardAgent to analyze the conversation
             feedback_result = await self.standard_agent.analyze_conversation_feedback(
-                conversation_text=conversation_text,
-                user_level="intermediate"  # Could be dynamic based on user profile
+                session_state=mock_session_state,
+                user_transcript=user_transcript,
+                ai_transcript=ai_transcript,
+                conversation_duration=duration
             )
             
             logger.info("✅ Feedback generated successfully")
@@ -195,70 +161,9 @@ class ConversationFlow:
                 }
             }
     
-    async def _save_feedback(self, feedback_data: Dict[str, Any]):
-        """Save feedback to database"""
-        try:
-            db = get_db_session()
-            try:
-                # Get session database ID
-                db_session = self.session_crud.get_session_by_id(db, self.session_id)
-                if not db_session:
-                    raise ValueError(f"Session not found: {self.session_id}")
-                
-                logger.info("📊 Saving feedback to database...")
-                
-                pillars = feedback_data.get("pillars", {})
-                feedback_items = []
-                
-                # Map pillar names to database enum values
-                pillar_mapping = {
-                    "pronunciation": "PRONUNCIATION",
-                    "fluency": "FLUENCY", 
-                    "grammar": "GRAMMAR",
-                    "expressions": "EXPRESSIONS",
-                    "vocabulary": "VOCABULARY",
-                    "comprehension": "COMPREHENSION"
-                }
-                
-                for pillar_name, pillar_data in pillars.items():
-                    if pillar_name in pillar_mapping:
-                        feedback_item = {
-                            "session_id": db_session.id,
-                            "pillar": pillar_mapping[pillar_name],
-                            "score": pillar_data.get("score", 7.0),
-                            "feedback_text": pillar_data.get("feedback", ""),
-                            "examples": json.dumps(pillar_data.get("examples", [])),
-                            "suggestions": json.dumps(pillar_data.get("suggestions", [])),
-                            "errors": json.dumps(pillar_data.get("errors", []))
-                        }
-                        feedback_items.append(feedback_item)
-                
-                # Save all feedback items
-                self.feedback_crud.create_feedback_batch(db, feedback_items)
-                logger.info(f"✅ Saved {len(feedback_items)} feedback items")
-                
-        except Exception as e:
-            logger.error(f"❌ Error saving feedback: {e}")
-            raise
+
     
-    async def _complete_session(self, duration_seconds: int):
-        """Mark session as completed and update metadata"""
-        try:
-            db = get_db_session()
-            try:
-                completion_data = {
-                    "status": "completed",
-                    "ended_at": datetime.now(timezone.utc),
-                    "duration_seconds": duration_seconds,
-                    "notes": "Conversation completed successfully"
-                }
-                
-                updated_session = self.session_crud.complete_session(db, self.session_id, completion_data)
-                logger.info(f"✅ Session marked as completed: {self.session_id}")
-                
-        except Exception as e:
-            logger.error(f"❌ Error completing session: {e}")
-            raise
+
     
     def is_active(self) -> bool:
         """Check if conversation is active"""

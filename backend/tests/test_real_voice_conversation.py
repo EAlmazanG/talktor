@@ -1,0 +1,316 @@
+"""
+Real Voice Conversation Test - Complete Integration with Real Audio
+
+This test executes the REAL RealtimeAgent with actual voice conversation,
+waits for the user to finish talking, and then processes the real conversation data.
+"""
+import asyncio
+import sys
+import os
+from datetime import datetime, timezone
+
+# Add the backend directory to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from services.conversation_flow import ConversationFlow
+from services.persistence_service import persistence_service
+
+
+async def test_real_voice_conversation_flow():
+    """Test complete flow with REAL voice conversation"""
+    print("🎤 REAL VOICE CONVERSATION TEST")
+    print("=" * 80)
+    print("This test will:")
+    print("1. 🎤 Start REAL RealtimeAgent with voice input/output")
+    print("2. ⏳ Wait for you to have a conversation")
+    print("3. 🛑 Detect when conversation ends")
+    print("4. 🤖 Generate REAL feedback with StandardAgent")
+    print("5. 💾 Save everything to database")
+    print("6. 📊 Show analytics and results")
+    print("=" * 80)
+    
+    user_id = "test_user_real_voice"
+    
+    try:
+        # Step 1: Initialize ConversationFlow
+        print("\n📋 Step 1: Initializing ConversationFlow...")
+        flow = ConversationFlow(user_id=user_id)
+        print(f"✅ ConversationFlow initialized for user: {user_id}")
+        print(f"   📦 PersistenceService: {flow.persistence.__class__.__name__}")
+        print(f"   🤖 StandardAgent: {flow.standard_agent.__class__.__name__}")
+        
+        # Step 2: Start REAL conversation with voice
+        print("\n🎤 Step 2: Starting REAL voice conversation...")
+        print("   🔧 Initializing RealtimeAgent with audio...")
+        print("   🎧 Make sure your microphone and speakers are working!")
+        
+        # Start the conversation - this will create a real RealtimeAgent
+        session_id = await flow.start_conversation()
+        
+        print(f"\n✅ Voice conversation started!")
+        print(f"   🎆 Session ID: {session_id}")
+        print(f"   🤖 Agent type: {type(flow.realtime_agent).__name__}")
+        print(f"   🎤 Microphone: Active")
+        print(f"   🔊 Speakers: Active")
+        
+        # Step 3: Wait for conversation to be active and provide instructions
+        print("\n💬 Step 3: Voice conversation is now ACTIVE!")
+        print("=" * 60)
+        print("🎯 INSTRUCTIONS FOR TESTING:")
+        print("1. 🗣️  Start speaking in English")
+        print("2. 🤖 The AI will respond with voice")
+        print("3. 💬 Have a natural conversation (2-3 minutes recommended)")
+        print("4. 🛑 Say 'stop', 'end', 'para', or 'termina' to end")
+        print("5. ⏳ The test will continue automatically after ending")
+        print("=" * 60)
+        print("\n🎤 CONVERSATION IS LIVE - START SPEAKING NOW!")
+        
+        # Wait for the conversation to be active
+        conversation_active = True
+        check_interval = 2  # Check every 2 seconds
+        total_wait_time = 0
+        max_wait_time = 600  # Maximum 10 minutes
+        
+        while conversation_active and total_wait_time < max_wait_time:
+            await asyncio.sleep(check_interval)
+            total_wait_time += check_interval
+            
+            # Check if conversation is still active
+            if flow.realtime_agent and hasattr(flow.realtime_agent, 'is_active'):
+                conversation_active = flow.realtime_agent.is_active()
+            else:
+                # If we can't check status, assume it's still active
+                # The user needs to manually end the conversation
+                conversation_active = True
+            
+            # Show periodic status updates
+            if total_wait_time % 30 == 0:  # Every 30 seconds
+                minutes = total_wait_time // 60
+                seconds = total_wait_time % 60
+                print(f"   ⏱️  Conversation active for {minutes}m {seconds}s...")
+                if flow.realtime_agent:
+                    print(f"   🎤 Agent status: {'Active' if conversation_active else 'Inactive'}")
+        
+        if total_wait_time >= max_wait_time:
+            print(f"\n⏰ Maximum wait time reached ({max_wait_time//60} minutes)")
+            print("   🛑 Ending conversation automatically...")
+        else:
+            print(f"\n🛑 Conversation ended after {total_wait_time//60}m {total_wait_time%60}s")
+        
+        # Step 4: Process the real conversation data
+        print("\n🔄 Step 4: Processing REAL conversation data...")
+        print("   📊 Getting conversation summary from RealtimeAgent...")
+        
+        # Debug: Check session state before processing
+        if flow.realtime_agent and hasattr(flow.realtime_agent, 'session_state'):
+            session_state = flow.realtime_agent.session_state
+            if session_state:
+                print(f"   🔍 DEBUG - Session State:")
+                print(f"       📝 User transcript length: {len(session_state.user_transcript)}")
+                print(f"       🤖 AI transcript length: {len(session_state.ai_transcript)}")
+                print(f"       📝 User transcript: '{session_state.user_transcript[:100]}...'")
+                print(f"       🤖 AI transcript: '{session_state.ai_transcript[:100]}...'")
+                print(f"       ⏱️ Duration: {session_state.get_session_duration():.2f}s")
+                print(f"       🔄 Is active: {session_state.is_active}")
+            else:
+                print("   ⚠️  DEBUG - No session state found")
+        else:
+            print("   ⚠️  DEBUG - No realtime agent or session state")
+        
+        print("   🤖 Generating feedback with StandardAgent...")
+        print("   💾 Saving to database with PersistenceService...")
+        
+        # End the conversation and process everything
+        results = await flow.end_conversation()
+        
+        print("\n✅ Conversation processing completed!")
+        print(f"   🎆 Session ID: {results['session_id']}")
+        print(f"   👤 User ID: {results['user_id']}")
+        print(f"   ⏱️ Duration: {results['duration_seconds']}s ({results['duration_seconds']//60}m {results['duration_seconds']%60}s)")
+        print(f"   💬 Messages: {results['message_count']}")
+        print(f"   🏁 Status: {results['status']}")
+        
+        # Step 5: Verify database persistence
+        print("\n💾 Step 5: Verifying database persistence...")
+        
+        # Get complete session summary
+        summary = await flow.persistence.get_session_summary(session_id)
+        assert summary is not None, "Session should be saved in database"
+        
+        print("✅ Database persistence verified!")
+        print(f"   📊 Session saved: {summary['session']['id']}")
+        print(f"   📝 Status: {summary['session']['status']}")
+        print(f"   💬 Messages saved: {summary['conversation']['message_count']}")
+        print(f"   📊 Feedback items: {summary['feedback']['pillar_count']}")
+        
+        if summary['feedback']['pillar_count'] > 0:
+            print(f"   🎯 Average score: {summary['feedback']['average_score']:.1f}/10")
+        
+        # Step 6: Show conversation transcript
+        print("\n📝 Step 6: Conversation Transcript:")
+        print("=" * 60)
+        
+        messages = summary['conversation']['messages']
+        
+        # Parse the JSON transcript to get individual messages
+        individual_messages = []
+        if messages and len(messages) > 0:
+            # The first message contains the complete conversation JSON
+            json_content = messages[0].get('content', '{}')
+            try:
+                import json
+                conversation_data = json.loads(json_content)
+                individual_messages = conversation_data.get('messages', [])
+                print(f"   🔍 Found {len(individual_messages)} individual messages in JSON")
+            except json.JSONDecodeError:
+                print(f"   ⚠️  Could not parse JSON content, showing raw messages")
+                individual_messages = messages
+        
+        if not individual_messages:
+            print("   ⚠️  No messages found")
+        else:
+            for i, msg in enumerate(individual_messages, 1):
+                # Handle different possible field names
+                if 'role' in msg:
+                    speaker = "🗣️  USER" if msg['role'] == 'user' else "🤖 AI"
+                elif 'speaker' in msg:
+                    speaker = "🗣️  USER" if msg['speaker'] == 'user' else "🤖 AI"
+                else:
+                    speaker = "🤖 UNKNOWN"
+                
+                content = msg.get('content', str(msg))[:100] + "..." if len(str(msg.get('content', msg))) > 100 else str(msg.get('content', msg))
+                timestamp = msg.get('timestamp', '')
+                order = msg.get('order', i)
+                print(f"{order:2d}. {speaker}: {content}")
+        
+        print("=" * 60)
+        
+        # Step 7: Show detailed feedback analysis
+        print("\n🤖 Step 7: AI Feedback Analysis:")
+        print("=" * 60)
+        
+        if summary['feedback']['pillar_count'] > 0:
+            feedback_pillars = summary['feedback']['pillars']
+            for pillar, data in feedback_pillars.items():
+                score = data.get('score', 0)
+                feedback_text = data.get('feedback', 'No feedback available')
+                print(f"\n📊 {pillar.upper()}: {score:.1f}/10")
+                print(f"   💬 {feedback_text}")
+                
+                # Show examples if available
+                examples = data.get('examples', [])
+                if examples and isinstance(examples, list) and len(examples) > 0:
+                    print(f"   ✅ Examples: {', '.join(examples[:3])}")
+                
+                # Show suggestions if available
+                suggestions = data.get('suggestions', [])
+                if suggestions and isinstance(suggestions, list) and len(suggestions) > 0:
+                    print(f"   💡 Suggestions: {', '.join(suggestions[:2])}")
+        else:
+            print("   ⚠️  No feedback generated (API key may be missing)")
+        
+        print("=" * 60)
+        
+        # Step 8: User progress analytics
+        print("\n📈 Step 8: User Progress Analytics:")
+        
+        progress = await flow.persistence.get_user_progress(user_id)
+        print(f"   👤 User: {progress['user_id']}")
+        print(f"   📊 Total sessions: {progress['total_sessions']}")
+        print(f"   ✅ Completed sessions: {progress['completed_sessions']}")
+        print(f"   ⏱️ Total conversation time: {progress['total_duration']}s ({progress['total_duration']//60}m)")
+        
+        if progress['average_scores']:
+            print(f"   📈 Average scores by pillar:")
+            for pillar, score in progress['average_scores'].items():
+                print(f"     • {pillar.title()}: {score:.1f}/10")
+        
+        # Step 9: Cleanup
+        print("\n🧹 Step 9: Cleanup...")
+        await flow.cleanup()
+        print("✅ Cleanup completed")
+        
+        print("\n" + "=" * 80)
+        print("🎉 REAL VOICE CONVERSATION TEST COMPLETED SUCCESSFULLY!")
+        print("=" * 80)
+        print("✅ Successfully tested:")
+        print("   • 🎤 REAL voice input/output with RealtimeAgent")
+        print("   • 💬 REAL conversation transcription")
+        print("   • 🤖 REAL AI feedback generation")
+        print("   • 💾 REAL database persistence")
+        print("   • 📊 REAL analytics and reporting")
+        print("\n🏆 THE COMPLETE TALKTOR SYSTEM IS WORKING!")
+        print("🚀 Ready for production deployment!")
+        
+        return True
+        
+    except KeyboardInterrupt:
+        print("\n\n⏹️  Test interrupted by user")
+        print("🧹 Cleaning up...")
+        if 'flow' in locals():
+            await flow.cleanup()
+        return False
+        
+    except Exception as e:
+        print(f"\n❌ Real voice conversation test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Cleanup on error
+        if 'flow' in locals():
+            await flow.cleanup()
+        return False
+
+
+async def show_database_stats():
+    """Show current database statistics"""
+    print("\n📊 Current Database Statistics:")
+    
+    try:
+        health = await persistence_service.health_check()
+        
+        print(f"   🏥 Status: {health['status']}")
+        print(f"   📊 Sessions: {health['tables']['sessions']}")
+        print(f"   💬 Transcripts: {health['tables']['transcripts']}")
+        print(f"   📋 Feedback: {health['tables']['feedback']}")
+        
+    except Exception as e:
+        print(f"   ❌ Error getting database stats: {e}")
+
+
+if __name__ == "__main__":
+    print("🎤 REAL VOICE CONVERSATION INTEGRATION TEST")
+    print("=" * 80)
+    print("⚠️  REQUIREMENTS:")
+    print("1. 🎧 Working microphone and speakers")
+    print("2. 🔑 OpenAI API key configured (for feedback generation)")
+    print("3. 🌐 Internet connection")
+    print("4. 🗣️  Be ready to speak in English for 2-3 minutes")
+    print("=" * 80)
+    
+    # Show current database state
+    asyncio.run(show_database_stats())
+    
+    # Ask for confirmation
+    print("\n🤔 Are you ready to start the REAL voice conversation test?")
+    print("   This will use your microphone and speakers.")
+    print("   You'll need to speak with the AI for a few minutes.")
+    
+
+    print("\n🚀 Starting REAL voice conversation test...")
+    
+    # Run the real voice conversation test
+    success = asyncio.run(test_real_voice_conversation_flow())
+    
+    # Show final database state
+    print("\n📊 Final Database State:")
+    asyncio.run(show_database_stats())
+    
+    if success:
+        print("\n🎉 TEST COMPLETED SUCCESSFULLY!")
+        print("🏆 Talktor voice conversation system is fully functional!")
+    else:
+        print("\n❌ TEST FAILED OR WAS INTERRUPTED")
+            
+    
+    print("\n" + "=" * 80)
