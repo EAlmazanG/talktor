@@ -195,16 +195,17 @@ class RealtimeAgent:
         
         logger.info(colorize(f"🗣️ User said: {transcript}", Colors.BRIGHT_CYAN))
         
-        # Check for termination commands before processing
+        # Normal transcript processing first
         if transcript and transcript.strip():
-            # Check if user wants to end the conversation
-            if self._is_termination_command(transcript):
+            self.conversation_service.update_conversation_context(self.session_state, "user", transcript)
+            
+            # Check for termination commands ONLY if it's a clear, short command
+            # Only check for termination if it's a very short phrase (1-3 words)
+            words = transcript.strip().split()
+            if len(words) <= 3 and self._is_termination_command(transcript):
                 logger.info(colorize(f"🛑 Termination command detected: {transcript}", Colors.BRIGHT_YELLOW))
                 await self._handle_conversation_termination()
                 return
-            
-            # Normal transcript processing
-            self.conversation_service.update_conversation_context(self.session_state, "user", transcript)
         else:
             logger.warning("Received empty or invalid transcript")
     
@@ -293,93 +294,116 @@ class RealtimeAgent:
         if not normalized:
             return False
         
-        # Common termination phrases in English and Spanish
-        termination_phrases = [
-            # English
-            "stop", "end", "finish", "quit", "exit", "bye", "goodbye",
-            "stop conversation", "end conversation", "finish conversation",
-            "stop talking", "end session", "finish session",
-            "that's all", "thats all", "that's enough", "thats enough", "i'm done", "im done", "we're done", "were done",
-            "terminate", "close", "stop please", "end please",
-            "i want to stop", "i want to end", "i want to finish",
-            
-            # Spanish
-            "para", "termina", "finaliza", "sal", "salir", "adiós", "adios", "chao",
-            "para conversación", "termina conversación", "finaliza conversación",
-            "para conversacion", "termina conversacion", "finaliza conversacion",
-            "para de hablar", "termina sesión", "finaliza sesión",
-            "para de sesion", "termina sesion", "finaliza sesion",
-            "es todo", "es suficiente", "ya terminé", "ya terminamos", "ya termine",
-            "terminar", "cerrar", "para por favor", "termina por favor",
-            "quiero parar", "quiero terminar", "quiero finalizar"
+        # ONLY accept very clear, unambiguous termination commands
+        clear_termination_words = [
+            "stop", "end", "finish", "quit", "bye", "goodbye", "exit", "done", 
+            "para", "termina", "finaliza", "adios", "chao"
         ]
         
-        # Check for exact matches first
-        for phrase in termination_phrases:
-            if normalized == phrase:
-                return True
-        
-        # Check if transcript starts with termination phrases
-        for phrase in termination_phrases:
-            if normalized.startswith(phrase + " "):
-                return True
-        
-        # Check for termination intent patterns
-        termination_patterns = [
-            r'^(stop|end|finish|quit|para|termina|finaliza)$',  # Single word
-            r'^(stop|end|finish|quit|para|termina|finaliza)\s+(now|please|ya|por favor)$',  # Word + modifier
-            r'^(i want to|i need to|quiero|necesito)\s+(stop|end|finish|quit|para|terminar|finalizar)$',  # Intent + action
-            r'^(please|por favor)\s+(stop|end|finish|quit|para|termina|finaliza)$',  # Polite request
-        ]
-        
-        for pattern in termination_patterns:
-            if re.match(pattern, normalized):
-                return True
-        
-        # Avoid false positives - check for context that suggests NOT termination
-        false_positive_patterns = [
-            r'\b(stop sign|stop light|stop motion|bus stop|stop watch|stop button)\b',  # "stop" in different context
-            r'\b(the end of|end of the|ending|end result|end game)\b',  # "end" in narrative context
-            r'\b(stopped|ending|finished|finishing)\b',  # Past tense forms
-            r'\b(stop by|stop over|stop in|stop at)\b',  # Phrasal verbs
-        ]
-        
-        for pattern in false_positive_patterns:
-            if re.search(pattern, normalized):
-                return False
-        
-        # Additional check: if "stop" is followed by a noun, it's likely not a termination command
-        if re.search(r'\bstop\s+(sign|light|button|watch|motion|car|bus|train|music|video|game|app)\b', normalized):
-            return False
-        
-        # For very short phrases (1-2 words), be more permissive with core termination words
+        # Must be EXACTLY one of these words, or with simple modifiers
         words = normalized.split()
-        if len(words) <= 2:
-            core_termination_words = ["stop", "end", "finish", "quit", "bye", "para", "termina", "finaliza"]
-            for word in words:
-                if word in core_termination_words:
+        
+        # Single word termination
+        if len(words) == 1 and words[0] in clear_termination_words:
+            logger.debug(f"Single word termination detected: {words[0]}")
+            return True
+            
+        # Two word combinations that are clearly termination
+        if len(words) == 2:
+            clear_two_word_patterns = [
+                ("stop", "now"), ("end", "now"), ("finish", "now"),
+                ("that's", "all"), ("i'm", "done"), ("we're", "done"),
+                ("stop", "it"), ("end", "it"), ("finish", "it")
+            ]
+            
+            # Handle contractions
+            text_clean = normalized.replace("'", "")
+            words_clean = text_clean.split()
+            
+            for pattern in clear_two_word_patterns:
+                if (words[0], words[1]) == pattern or (words_clean[0] if len(words_clean) > 0 else "", words_clean[1] if len(words_clean) > 1 else "") == pattern:
+                    logger.debug(f"Two word termination detected: {pattern}")
+                    return True
+        
+        # Three word combinations
+        if len(words) == 3:
+            clear_three_word_patterns = [
+                ("let's", "stop", "now"), ("let's", "end", "now"), 
+                ("i", "want", "stop"), ("i", "want", "end")
+            ]
+            
+            for pattern in clear_three_word_patterns:
+                if (words[0], words[1], words[2]) == pattern:
+                    logger.debug(f"Three word termination detected: {pattern}")
                     return True
         
         return False
     
     async def _handle_conversation_termination(self):
-        """Handle conversation termination gracefully"""
+        """Handle conversation termination: Bye + Silent Feedback Generation"""
         try:
-            logger.info(colorize("🛑 Starting conversation termination process...", Colors.BRIGHT_YELLOW))
+            logger.info(colorize("🛑 Starting conversation termination: Bye + Feedback...", Colors.BRIGHT_YELLOW))
             
-            # Send a farewell message to the user
-            farewell_message = {
-                "type": "response.create",
-                "response": {
-                    "modalities": ["text", "audio"],
-                    "instructions": "Say a brief, friendly goodbye to the user. Thank them for the conversation and wish them well with their English learning."
+            # Step 1: Add a direct "Bye!" message from assistant
+            logger.info("👋 Adding goodbye message...")
+            
+            # Add the bye message directly to the conversation
+            self.conversation_service.update_conversation_context(self.session_state, "assistant", "Bye! Thanks for the conversation!")
+            
+            # Also send it through the realtime API for audio
+            bye_item = {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{
+                        "type": "text",
+                        "text": "Bye! Thanks for the conversation!"
+                    }]
                 }
             }
             
-            await self.openai_service.send_message(self.session_state, farewell_message)
+            await self.openai_service.send_message(self.session_state, bye_item)
+            await asyncio.sleep(1)  # Brief wait
             
-            # Wait a moment for the farewell to be processed
-            await asyncio.sleep(2)
+            # Step 2: Generate feedback silently (text only, no audio)
+            logger.info("🤖 Generating feedback silently...")
+            feedback_request = {
+                "type": "response.create",
+                "response": {
+                    "modalities": ["text"],  # ONLY text - no audio for feedback
+                    "instructions": """Provide detailed feedback on this English conversation in JSON format. Analyze the user's performance across these 6 pillars:
+
+1. PRONUNCIATION: Rate clarity, accent, phonetic accuracy (0-10)
+2. FLUENCY: Rate speaking rhythm, pace, natural flow (0-10) 
+3. GRAMMAR: Rate sentence structure, tenses, accuracy (0-10)
+4. EXPRESSIONS: Rate use of idioms, phrases, natural expressions (0-10)
+5. VOCABULARY: Rate word choice, range, appropriateness (0-10)
+6. COMPREHENSION: Rate understanding of questions and context (0-10)
+
+Return ONLY this JSON structure:
+{
+  "feedback_type": "conversation_analysis",
+  "pillars": {
+    "pronunciation": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
+    "fluency": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
+    "grammar": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
+    "expressions": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
+    "vocabulary": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
+    "comprehension": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []}
+  },
+  "overall_score": X.X,
+  "summary": "Brief overall assessment"
+}"""
+                }
+            }
+            
+            # Send the feedback request (silent generation)
+            await self.openai_service.send_message(self.session_state, feedback_request)
+            
+            # Wait for feedback to be generated
+            logger.info("⏳ Waiting for feedback generation...")
+            await asyncio.sleep(3)  # Wait for feedback generation
             
             # Mark session as ending
             if self.session_state:
