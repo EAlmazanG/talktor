@@ -280,6 +280,81 @@ PGADMIN_DEFAULT_PASSWORD=
 - Resúmenes de sesiones completos
 - Tracking de mejoras
 
+## 📋 SISTEMA DE LOGGING AVANZADO
+
+### **Características implementadas**
+- ✅ **Logging dual**: Consola + archivos timestampeados
+- ✅ **Archivos organizados**: `YYYYMMDD_HHMMSS_servicio.log`
+- ✅ **Formateo diferenciado**: Más detalle en archivos (función:línea)
+- ✅ **Detección automática**: Nombre del servicio desde el módulo principal
+- ✅ **Gestión de ruido**: Filtros para websockets, urllib3, asyncio
+- ✅ **Directorio centralizado**: `/backend/logs/` con `.gitkeep`
+
+### **Utilidades disponibles**
+
+#### **setup_logging()** - Configuración principal
+```python
+from core.logging import setup_logging
+
+setup_logging(
+    level="DEBUG",                    # Nivel de logging
+    enable_file_logging=True,        # Habilitar archivos
+    log_directory="logs",            # Directorio de logs
+    service_name="mi_servicio"       # Nombre del servicio
+)
+```
+
+#### **log_utils.py** - Gestión de archivos
+- `list_log_files()` - Lista todos los logs con metadata
+- `get_latest_log_file()` - Obtiene el log más reciente
+- `tail_log_file()` - Lee las últimas N líneas
+- `search_logs()` - Busca términos en todos los logs
+- `cleanup_old_logs()` - Limpia logs antiguos
+
+#### **view_logs.py** - Script de visualización
+```bash
+# Listar todos los logs
+python scripts/view_logs.py --list
+
+# Ver últimas 50 líneas del log más reciente
+python scripts/view_logs.py --tail 50
+
+# Buscar errores en todos los logs
+python scripts/view_logs.py --search "error"
+
+# Seguir un log en tiempo real (como tail -f)
+python scripts/view_logs.py --follow
+
+# Filtrar por servicio específico
+python scripts/view_logs.py --service "realtime_agent" --tail 20
+```
+
+### **Formato de logs**
+
+#### **Consola** (legible)
+```
+2025-07-29 17:38:55 - __main__ - INFO - 🚀 Starting logging demo
+```
+
+#### **Archivo** (detallado)
+```
+2025-07-29 17:38:55 - __main__ - INFO - demo_basic_logging:35 - 🚀 Starting logging demo
+```
+
+### **Integración en tests**
+Todos los tests ahora incluyen logging automático:
+- Archivo por test con timestamp
+- Logs de DEBUG para debugging detallado
+- Trazabilidad completa de ejecución
+- Fácil análisis post-ejecución
+
+### **Gestión automática**
+- ✅ **Creación automática** del directorio `logs/`
+- ✅ **Archivos ignorados** en git (excepto `.gitkeep`)
+- ✅ **Encoding UTF-8** para caracteres especiales
+- ✅ **Rotación manual** con utilidades de limpieza
+- ✅ **Búsqueda eficiente** con indexación por servicio
+
 ## 🎯 CONCLUSIÓN
 
 El repositorio Talktor tiene una **arquitectura sólida y modular** con:
@@ -289,5 +364,6 @@ El repositorio Talktor tiene una **arquitectura sólida y modular** con:
 - ✅ **Transacciones atómicas y persistencia robusta**
 - ✅ **Configuración flexible por entornos**
 - ✅ **Testing comprehensivo**
+- ✅ **Sistema de logging avanzado con archivos timestampeados**
 
-**Estado actual**: Sistema core completamente funcional, listo para desarrollo de frontend y características avanzadas.
+**Estado actual**: Sistema core completamente funcional con logging profesional, listo para desarrollo de frontend y características avanzadas.
