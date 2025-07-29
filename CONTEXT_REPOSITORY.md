@@ -74,6 +74,8 @@
 - `test_real_voice_conversation.py` - Tests de conversación real
 - `test_simple_flow.py` - Tests de flujo simple
 - `test_termination_commands.py` - Tests de comandos de terminación
+- `test_feedback_generation.py` - Tests del sistema de feedback
+- `test_feedback_english_columns.py` - Tests de columnas en inglés
 
 #### 📄 **Archivos principales**
 - `main.py` - Aplicación FastAPI con endpoints básicos
@@ -91,6 +93,8 @@
 - `prod_stop.sh` - Parar entorno de producción
 - `view_logs.py` - Visor de logs con búsqueda y seguimiento
 - `demo_logging.py` - Demostración del sistema de logging
+- `migrate_feedback_table.py` - Migración inicial de tabla feedback
+- `migrate_feedback_columns_to_english.py` - Migración de columnas a inglés
 
 ### 📂 **FRONTEND** (`/frontend/`)
 **Frontend (vacío actualmente)**
@@ -118,14 +122,47 @@
 - `conversation_json` (JSON) - Conversación estructurada con mensajes individuales
 - `created_at` (DateTime) - Timestamp
 
-### **Feedback** - Retroalimentación estructurada
-- `feedback_id` (UUID) - Identificador único
-- `session_id` (UUID) - FK a sessions
-- `pillar` (Enum) - PRONUNCIATION/FLUENCY/GRAMMAR/EXPRESSIONS/VOCABULARY/COMPREHENSION
-- `score` (Integer) - Puntuación 1-10
-- `specific_examples` (Text) - Ejemplos específicos
-- `improvement_areas` (Text) - Áreas de mejora
-- `created_at` (DateTime) - Timestamp
+### **Feedback** - Retroalimentación estructurada (Una fila por sesión)
+- `id` (Integer) - Identificador único
+- `session_id` (Integer) - FK a sessions (único)
+- **General Feedback:**
+  - `general_feedback` (Text) - Feedback general de la conversación
+  - `general_errors` (JSON) - Array de errores generales
+  - `general_suggestions` (JSON) - Array de sugerencias generales
+  - `overall_score` (Float) - Puntuación general 0-10
+- **Pronunciation Pillar:**
+  - `pronunciation_score` (Float) - Puntuación 0-10
+  - `pronunciation_summary` (Text) - Resumen de pronunciación
+  - `pronunciation_errors` (JSON) - Array de errores específicos
+  - `pronunciation_suggestions` (JSON) - Array de sugerencias
+- **Fluency Pillar:**
+  - `fluency_score` (Float) - Puntuación 0-10
+  - `fluency_summary` (Text) - Resumen de fluidez
+  - `fluency_errors` (JSON) - Array de errores específicos
+  - `fluency_suggestions` (JSON) - Array de sugerencias
+- **Grammar Pillar:**
+  - `grammar_score` (Float) - Puntuación 0-10
+  - `grammar_summary` (Text) - Resumen de gramática
+  - `grammar_errors` (JSON) - Array de errores específicos
+  - `grammar_suggestions` (JSON) - Array de sugerencias
+- **Expressions Pillar:**
+  - `expressions_score` (Float) - Puntuación 0-10
+  - `expressions_summary` (Text) - Resumen de expresiones
+  - `expressions_errors` (JSON) - Array de errores específicos
+  - `expressions_suggestions` (JSON) - Array de sugerencias
+- **Vocabulary Pillar:**
+  - `vocabulary_score` (Float) - Puntuación 0-10
+  - `vocabulary_summary` (Text) - Resumen de vocabulario
+  - `vocabulary_errors` (JSON) - Array de errores específicos
+  - `vocabulary_suggestions` (JSON) - Array de sugerencias
+- **Comprehension Pillar:**
+  - `comprehension_score` (Float) - Puntuación 0-10
+  - `comprehension_summary` (Text) - Resumen de comprensión
+  - `comprehension_errors` (JSON) - Array de errores específicos
+  - `comprehension_suggestions` (JSON) - Array de sugerencias
+- **Metadata:**
+  - `created_at` (DateTime) - Timestamp de creación
+  - `generated_by` (String) - Agente que generó el feedback
 
 ### **Homework Items** - Tareas asignadas
 - `homework_id` (UUID) - Identificador único
@@ -365,5 +402,32 @@ El repositorio Talktor tiene una **arquitectura sólida y modular** con:
 - ✅ **Configuración flexible por entornos**
 - ✅ **Testing comprehensivo**
 - ✅ **Sistema de logging avanzado con archivos timestampeados**
+- ✅ **Sistema de feedback rediseñado con columnas en inglés**
 
-**Estado actual**: Sistema core completamente funcional con logging profesional, listo para desarrollo de frontend y características avanzadas.
+**Estado actual**: Sistema core completamente funcional con logging profesional y sistema de feedback optimizado, listo para desarrollo de frontend y características avanzadas.
+
+## 🔄 MIGRACIONES RECIENTES
+
+### **Migración de Feedback a Columnas en Inglés (Enero 2025)**
+
+**Objetivo**: Estandarizar nombres de columnas de la tabla feedback de español a inglés para consistencia internacional.
+
+**Cambios realizados**:
+- ✅ **Modelo de BD actualizado** (`db/models.py`) - 21 columnas renombradas
+- ✅ **CRUD actualizado** (`db/crud.py`) - Método `create_comprehensive_feedback` con parámetros en inglés
+- ✅ **PersistenceService actualizado** - Todas las referencias migradas a inglés
+- ✅ **Script de migración** - `migrate_feedback_columns_to_english.py` ejecutado exitosamente
+- ✅ **Tests actualizados** - Verificación completa del sistema con nuevos nombres
+
+**Columnas migradas**:
+```
+General: feedback_general → general_feedback
+         errores_generales → general_errors
+         sugerencias_generales → general_suggestions
+
+Pilares: [pillar]_resumen → [pillar]_summary
+         [pillar]_errores → [pillar]_errors
+         [pillar]_sugerencias → [pillar]_suggestions
+```
+
+**Estado**: ✅ **Completado y verificado** - Sistema funcionando correctamente con nombres en inglés.
