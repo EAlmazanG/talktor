@@ -384,16 +384,50 @@ class RealtimeAgent:
 Return ONLY this JSON structure:
 {
   "feedback_type": "conversation_analysis",
-  "pillars": {
-    "pronunciation": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
-    "fluency": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
-    "grammar": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
-    "expressions": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
-    "vocabulary": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []},
-    "comprehension": {"score": X.X, "feedback": "detailed text", "examples": [], "suggestions": []}
+  "general": {
+    "feedback": "Overall feedback summary",
+    "errores": ["general error 1", "general error 2"],
+    "sugerencias": ["general suggestion 1", "general suggestion 2"]
   },
-  "overall_score": X.X,
-  "summary": "Brief overall assessment"
+  "pillars": {
+    "pronunciation": {
+      "score": X.X,
+      "resumen": "Detailed summary for pronunciation",
+      "errores": ["pronunciation error 1", "pronunciation error 2"],
+      "sugerencias": ["pronunciation suggestion 1", "pronunciation suggestion 2"]
+    },
+    "fluency": {
+      "score": X.X,
+      "resumen": "Detailed summary for fluency",
+      "errores": ["fluency error 1", "fluency error 2"],
+      "sugerencias": ["fluency suggestion 1", "fluency suggestion 2"]
+    },
+    "grammar": {
+      "score": X.X,
+      "resumen": "Detailed summary for grammar",
+      "errores": ["grammar error 1", "grammar error 2"],
+      "sugerencias": ["grammar suggestion 1", "grammar suggestion 2"]
+    },
+    "expressions": {
+      "score": X.X,
+      "resumen": "Detailed summary for expressions",
+      "errores": ["expressions error 1", "expressions error 2"],
+      "sugerencias": ["expressions suggestion 1", "expressions suggestion 2"]
+    },
+    "vocabulary": {
+      "score": X.X,
+      "resumen": "Detailed summary for vocabulary",
+      "errores": ["vocabulary error 1", "vocabulary error 2"],
+      "sugerencias": ["vocabulary suggestion 1", "vocabulary suggestion 2"]
+    },
+    "comprehension": {
+      "score": X.X,
+      "resumen": "Detailed summary for comprehension",
+      "errores": ["comprehension error 1", "comprehension error 2"],
+      "sugerencias": ["comprehension suggestion 1", "comprehension suggestion 2"]
+    }
+  },
+  "overall_score": X.X
 }"""
                 }
             }

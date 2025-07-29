@@ -127,28 +127,20 @@ async def test_with_feedback_scenario():
         flow = ConversationFlow(user_id=user_id)
         logger.info(f"✅ ConversationFlow initialized for user: {user_id}")
         
-        # Create a mock conversation summary WITH feedback
+        # Define mock feedback message with new format
         mock_feedback_message = {
-            "role": "assistant",
-            "content": '{"feedback_type": "conversation_analysis", "overall_score": 8.5, "summary": "Good conversation with room for improvement", "pillars": {"pronunciation": {"score": 8.0, "feedback": "Clear pronunciation", "examples": [], "suggestions": []}, "fluency": {"score": 7.5, "feedback": "Good flow", "examples": [], "suggestions": []}, "grammar": {"score": 8.5, "feedback": "Excellent grammar", "examples": [], "suggestions": []}, "expressions": {"score": 7.0, "feedback": "Basic expressions used", "examples": [], "suggestions": []}, "vocabulary": {"score": 8.0, "feedback": "Good vocabulary range", "examples": [], "suggestions": []}, "comprehension": {"score": 9.0, "feedback": "Excellent understanding", "examples": [], "suggestions": []}}}',
-            "timestamp": "2025-07-29T17:00:04",
+            "role": "assistant", 
+            "content": '{"feedback_type": "conversation_analysis", "overall_score": 8.5, "general": {"feedback": "Good conversation overall", "errores": ["Some hesitation", "Minor grammar issues"], "sugerencias": ["Practice more fluency", "Review present tense"]}, "pillars": {"pronunciation": {"score": 8.0, "resumen": "Clear pronunciation overall", "errores": ["Difficulty with \'th\' sounds"], "sugerencias": ["Practice \'th\' sound exercises"]}, "fluency": {"score": 7.5, "resumen": "Natural flow with some hesitation", "errores": ["Occasional pauses"], "sugerencias": ["Practice speaking without stopping"]}}}', 
+            "timestamp": "2025-07-29T17:00:04", 
             "order": 5
         }
         
+        # Mock conversation with AI feedback
         mock_conversation_summary = {
-            "session_id": flow.session_id,
-            "conversation_text": "User: Hello\nAI: Hi there!\nUser: Bye\nAI: Goodbye!",
-            "messages": [
-                {"role": "user", "content": "Hello", "timestamp": "2025-07-29T17:00:00"},
-                {"role": "assistant", "content": "Hi there!", "timestamp": "2025-07-29T17:00:01"},
-                {"role": "user", "content": "Bye", "timestamp": "2025-07-29T17:00:02"},
-                {"role": "assistant", "content": "Goodbye!", "timestamp": "2025-07-29T17:00:03"},
-                mock_feedback_message
-            ],
-            "duration_seconds": 35.0,
             "conversation_json": {
-                "session_id": flow.session_id,
+                "session_id": "test-session-with-feedback",
                 "message_count": 5,
+                "duration_seconds": 35,
                 "messages": [
                     {"role": "user", "content": "Hello", "timestamp": "2025-07-29T17:00:00", "order": 1},
                     {"role": "assistant", "content": "Hi there!", "timestamp": "2025-07-29T17:00:01", "order": 2},

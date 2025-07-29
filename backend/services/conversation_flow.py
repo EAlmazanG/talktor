@@ -146,11 +146,11 @@ class ConversationFlow:
                         continue
             
             if feedback_data:
-                # Return the feedback in the expected format
+                # Return the feedback in the new format
                 logger.info("✅ Found real AI-generated feedback from RealtimeAgent")
                 return {
-                    "overall_score": feedback_data.get("overall_score", 7.0),
-                    "summary": feedback_data.get("summary", "Conversation analysis completed"),
+                    "overall_score": feedback_data.get("overall_score"),
+                    "general": feedback_data.get("general", {}),
                     "pillars": feedback_data.get("pillars", {}),
                     "source": "realtime_agent",
                     "generated_at": datetime.now().isoformat()

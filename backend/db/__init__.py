@@ -20,8 +20,7 @@ from .models import (
     VocabularyItem,
     AgentType,
     ConversationMode,
-    Speaker,
-    FeedbackPillar
+    Speaker
 )
 
 from .crud import (

@@ -16,7 +16,7 @@ from core.colors import colorize, Colors
 from db.database import get_db_session, init_database
 from db.crud import SessionCRUD, TranscriptCRUD, FeedbackCRUD, HomeworkCRUD
 from db.models import (
-    AgentType, ConversationMode, Speaker, FeedbackPillar,
+    AgentType, ConversationMode, Speaker,
     Session as SessionModel, Transcript, Feedback, HomeworkItem
 )
 
@@ -363,38 +363,61 @@ class PersistenceService:
                 
                 # 3. Save feedback
                 logger.info(f"   📊 Step 3: Saving feedback data...")
-                feedback_items = []
+                feedback_item = None
                 
                 if feedback_data is None:
                     logger.info("   ⚠️ No feedback data provided - skipping feedback save")
-                    pillars = {}
                 else:
+                    # Extract data from the new format
+                    general = feedback_data.get("general", {})
                     pillars = feedback_data.get("pillars", {})
-                pillar_mapping = {
-                    "pronunciation": FeedbackPillar.PRONUNCIATION,
-                    "fluency": FeedbackPillar.FLUENCY,
-                    "grammar": FeedbackPillar.GRAMMAR,
-                    "expressions": FeedbackPillar.EXPRESSIONS,
-                    "vocabulary": FeedbackPillar.VOCABULARY,
-                    "comprehension": FeedbackPillar.COMPREHENSION
-                }
+                    overall_score = feedback_data.get("overall_score")
+                    
+                    # Create single feedback record
+                    feedback_item = self.feedback_crud.create_comprehensive_feedback(
+                        db=db,
+                        session_id=session.id,
+                        # General feedback
+                        general_feedback=general.get("feedback"),
+                        general_errors=json.dumps(general.get("errores", [])),
+                        general_suggestions=json.dumps(general.get("sugerencias", [])),
+                        overall_score=overall_score,
+                        # Pronunciation
+                        pronunciation_score=pillars.get("pronunciation", {}).get("score"),
+                        pronunciation_summary=pillars.get("pronunciation", {}).get("resumen"),
+                        pronunciation_errors=json.dumps(pillars.get("pronunciation", {}).get("errores", [])),
+                        pronunciation_suggestions=json.dumps(pillars.get("pronunciation", {}).get("sugerencias", [])),
+                        # Fluency
+                        fluency_score=pillars.get("fluency", {}).get("score"),
+                        fluency_summary=pillars.get("fluency", {}).get("resumen"),
+                        fluency_errors=json.dumps(pillars.get("fluency", {}).get("errores", [])),
+                        fluency_suggestions=json.dumps(pillars.get("fluency", {}).get("sugerencias", [])),
+                        # Grammar
+                        grammar_score=pillars.get("grammar", {}).get("score"),
+                        grammar_summary=pillars.get("grammar", {}).get("resumen"),
+                        grammar_errors=json.dumps(pillars.get("grammar", {}).get("errores", [])),
+                        grammar_suggestions=json.dumps(pillars.get("grammar", {}).get("sugerencias", [])),
+                        # Expressions
+                        expressions_score=pillars.get("expressions", {}).get("score"),
+                        expressions_summary=pillars.get("expressions", {}).get("resumen"),
+                        expressions_errors=json.dumps(pillars.get("expressions", {}).get("errores", [])),
+                        expressions_suggestions=json.dumps(pillars.get("expressions", {}).get("sugerencias", [])),
+                        # Vocabulary
+                        vocabulary_score=pillars.get("vocabulary", {}).get("score"),
+                        vocabulary_summary=pillars.get("vocabulary", {}).get("resumen"),
+                        vocabulary_errors=json.dumps(pillars.get("vocabulary", {}).get("errores", [])),
+                        vocabulary_suggestions=json.dumps(pillars.get("vocabulary", {}).get("sugerencias", [])),
+                        # Comprehension
+                        comprehension_score=pillars.get("comprehension", {}).get("score"),
+                        comprehension_summary=pillars.get("comprehension", {}).get("resumen"),
+                        comprehension_errors=json.dumps(pillars.get("comprehension", {}).get("errores", [])),
+                        comprehension_suggestions=json.dumps(pillars.get("comprehension", {}).get("sugerencias", [])),
+                        # Metadata
+                        generated_by="realtime_agent"
+                    )
                 
-                for pillar_name, pillar_data in pillars.items():
-                    if pillar_name in pillar_mapping and isinstance(pillar_data, dict):
-                        feedback = self.feedback_crud.create_feedback_item(
-                            db=db,
-                            session_id=session.id,
-                            pillar=pillar_mapping[pillar_name],
-                            score=pillar_data.get("score", 7.0),
-                            feedback_text=pillar_data.get("feedback", ""),
-                            examples=json.dumps(pillar_data.get("examples", [])),
-                            suggestions=json.dumps(pillar_data.get("suggestions", [])),
-                            errors=json.dumps(pillar_data.get("errors", [])),
-                            generated_by="standard_agent"
-                        )
-                        feedback_items.append(feedback)
-                
-                logger.info(f"   ✅ Saved {len(feedback_items)} feedback items")
+                feedback_count = 1 if feedback_item else 0
+                logger.info(f"   ✅ Saved {feedback_count} feedback items")
                 
                 # 4. Complete session
                 logger.info(f"   🏁 Step 4: Completing session...")
@@ -415,21 +438,21 @@ class PersistenceService:
                 result = {
                     "session": session,
                     "transcript": transcript,  # Single JSON transcript
-                    "feedback": feedback_items,
+                    "feedback": feedback_item,
                     "conversation_json": conversation_json,
                     "summary": {
                         "session_id": session_id,
                         "user_id": user_id,
                         "duration_seconds": duration_seconds,
                         "message_count": conversation_json.get('message_count', 0),
-                        "feedback_count": len(feedback_items),
+                        "feedback_count": feedback_count,
                         "status": "completed"
                     }
                 }
                 
                 logger.info(colorize(
                     f"✅ Saved complete conversation: {session_id} "
-                    f"({conversation_json.get('message_count', 0)} messages, {len(feedback_items)} feedback items)",
+                    f"({conversation_json.get('message_count', 0)} messages, {feedback_count} feedback items)",
                     Colors.BRIGHT_GREEN
                 ))
                 
@@ -468,19 +491,39 @@ class PersistenceService:
                 all_feedback = []
                 for session in sessions:
                     feedback = self.feedback_crud.get_session_feedback(db, session.id)
-                    all_feedback.extend(feedback)
+                    if feedback:  # feedback is now a single object, not a list
+                        all_feedback.append(feedback)
                 
-                # Calculate average scores by pillar
-                pillar_scores = {}
+                # Calculate average scores by pillar from the new feedback format
+                pillar_scores = {
+                    'pronunciation': [],
+                    'fluency': [],
+                    'grammar': [],
+                    'expressions': [],
+                    'vocabulary': [],
+                    'comprehension': []
+                }
+                
                 for feedback in all_feedback:
-                    pillar = feedback.pillar.value
-                    if pillar not in pillar_scores:
-                        pillar_scores[pillar] = []
-                    pillar_scores[pillar].append(feedback.score)
+                    # Extract scores from the new feedback format
+                    if feedback.pronunciation_score is not None:
+                        pillar_scores['pronunciation'].append(feedback.pronunciation_score)
+                    if feedback.fluency_score is not None:
+                        pillar_scores['fluency'].append(feedback.fluency_score)
+                    if feedback.grammar_score is not None:
+                        pillar_scores['grammar'].append(feedback.grammar_score)
+                    if feedback.expressions_score is not None:
+                        pillar_scores['expressions'].append(feedback.expressions_score)
+                    if feedback.vocabulary_score is not None:
+                        pillar_scores['vocabulary'].append(feedback.vocabulary_score)
+                    if feedback.comprehension_score is not None:
+                        pillar_scores['comprehension'].append(feedback.comprehension_score)
                 
+                # Calculate averages only for pillars that have scores
                 average_scores = {
                     pillar: sum(scores) / len(scores)
                     for pillar, scores in pillar_scores.items()
+                    if len(scores) > 0
                 }
                 
                 # Recent activity (last 5 sessions)
@@ -531,17 +574,28 @@ class PersistenceService:
                     for t in transcripts
                 ])
                 
-                # Organize feedback by pillar
-                feedback_by_pillar = {
-                    f.pillar.value: {
-                        "score": f.score,
-                        "feedback": f.feedback_text,
-                        "examples": json.loads(f.examples) if f.examples else [],
-                        "suggestions": json.loads(f.suggestions) if f.suggestions else [],
-                        "errors": json.loads(f.errors) if f.errors else []
-                    }
-                    for f in feedback
-                }
+                # Organize feedback by pillar (new format)
+                feedback_by_pillar = {}
+                overall_score = None
+                
+                if feedback:
+                    # Extract pillar data from the comprehensive feedback
+                    pillars = ['pronunciation', 'fluency', 'grammar', 'expressions', 'vocabulary', 'comprehension']
+                    for pillar in pillars:
+                        score = getattr(feedback, f'{pillar}_score', None)
+                        summary = getattr(feedback, f'{pillar}_summary', None)
+                        errors_json = getattr(feedback, f'{pillar}_errors', None)
+                        suggestions_json = getattr(feedback, f'{pillar}_suggestions', None)
+                        
+                        if score is not None:
+                            feedback_by_pillar[pillar] = {
+                                "score": score,
+                                "summary": summary,
+                                "errors": json.loads(errors_json) if errors_json else [],
+                                "suggestions": json.loads(suggestions_json) if suggestions_json else []
+                            }
+                    
+                    overall_score = feedback.overall_score
                 
                 return {
                     "session": {
@@ -574,9 +628,13 @@ class PersistenceService:
                         ]
                     },
                     "feedback": {
-                        "pillar_count": len(feedback),
-                        "average_score": sum(f.score for f in feedback) / len(feedback) if feedback else 0,
-                        "pillars": feedback_by_pillar
+                        "has_feedback": feedback is not None,
+                        "overall_score": overall_score,
+                        "pillar_count": len(feedback_by_pillar),
+                        "pillars": feedback_by_pillar,
+                        "general_feedback": feedback.general_feedback if feedback else None,
+                        "general_errors": json.loads(feedback.general_errors) if feedback and feedback.general_errors else [],
+                        "general_suggestions": json.loads(feedback.general_suggestions) if feedback and feedback.general_suggestions else []
                     }
                 }
                 

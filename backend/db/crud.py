@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
 
 from .models import Session as SessionModel, Transcript, Feedback, HomeworkItem, VocabularyItem
-from .models import AgentType, ConversationMode, Speaker, FeedbackPillar
+from .models import AgentType, ConversationMode, Speaker
 from core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -162,103 +162,116 @@ class FeedbackCRUD:
     """CRUD operations for Feedback model"""
     
     @staticmethod
-    def create_feedback_item(
-        db: Session,
-        session_id: int,
-        pillar: FeedbackPillar,
-        score: float,
-        feedback_text: str,
-        examples: Optional[Dict] = None,
-        suggestions: Optional[Dict] = None,
-        errors: Optional[Dict] = None,
-        generated_by: str = "standard_agent"
-    ) -> Feedback:
-        """Create a feedback item for a specific pillar"""
-        try:
-            feedback = Feedback(
-                session_id=session_id,
-                pillar=pillar,
-                score=score,
-                feedback_text=feedback_text,
-                examples=examples,
-                suggestions=suggestions,
-                errors=errors,
-                generated_by=generated_by
-            )
-            db.add(feedback)
-            db.commit()
-            db.refresh(feedback)
-            logger.info(f"✅ Created feedback: {pillar} - Score: {score}")
-            return feedback
-        except Exception as e:
-            logger.error(f"❌ Error creating feedback: {e}")
-            db.rollback()
-            raise
-    
-    @staticmethod
-    def create_session_feedback(
-        db: Session,
-        session_id: int,
-        feedback_data: Dict[str, Any]
-    ) -> List[Feedback]:
-        """Create feedback for all pillars from StandardAgent output"""
-        feedback_items = []
-        
-        try:
-            # Assuming feedback_data has structure like:
-            # {"pillars": {"pronunciation": {"score": 7, "feedback": "..."}, ...}}
-            pillars_data = feedback_data.get("pillars", {})
-            
-            for pillar_name, pillar_data in pillars_data.items():
-                try:
-                    pillar_enum = FeedbackPillar(pillar_name.lower())
-                    feedback_item = FeedbackCRUD.create_feedback_item(
-                        db=db,
-                        session_id=session_id,
-                        pillar=pillar_enum,
-                        score=pillar_data.get("score", 0),
-                        feedback_text=pillar_data.get("feedback", ""),
-                        examples=pillar_data.get("examples"),
-                        suggestions=pillar_data.get("suggestions"),
-                        errors=pillar_data.get("errors")
-                    )
-                    feedback_items.append(feedback_item)
-                except ValueError:
-                    logger.warning(f"⚠️ Unknown pillar: {pillar_name}")
-                    continue
-            
-            logger.info(f"✅ Created {len(feedback_items)} feedback items for session {session_id}")
-            return feedback_items
-            
-        except Exception as e:
-            logger.error(f"❌ Error creating session feedback: {e}")
-            db.rollback()
-            raise
-    
-    @staticmethod
     def get_session_feedback(
         db: Session,
         session_id: int
-    ) -> List[Feedback]:
-        """Get all feedback for a session"""
-        return db.query(Feedback).filter(Feedback.session_id == session_id).all()
+    ) -> Optional[Feedback]:
+        """Get feedback for a session (single row)"""
+        return db.query(Feedback).filter(Feedback.session_id == session_id).first()
+    
+    @staticmethod
+    def create_comprehensive_feedback(
+        db: Session,
+        session_id: int,
+        # General feedback
+        general_feedback: str = None,
+        general_errors: str = None,
+        general_suggestions: str = None,
+        overall_score: float = None,
+        # Pronunciation
+        pronunciation_score: float = None,
+        pronunciation_summary: str = None,
+        pronunciation_errors: str = None,
+        pronunciation_suggestions: str = None,
+        # Fluency
+        fluency_score: float = None,
+        fluency_summary: str = None,
+        fluency_errors: str = None,
+        fluency_suggestions: str = None,
+        # Grammar
+        grammar_score: float = None,
+        grammar_summary: str = None,
+        grammar_errors: str = None,
+        grammar_suggestions: str = None,
+        # Expressions
+        expressions_score: float = None,
+        expressions_summary: str = None,
+        expressions_errors: str = None,
+        expressions_suggestions: str = None,
+        # Vocabulary
+        vocabulary_score: float = None,
+        vocabulary_summary: str = None,
+        vocabulary_errors: str = None,
+        vocabulary_suggestions: str = None,
+        # Comprehension
+        comprehension_score: float = None,
+        comprehension_summary: str = None,
+        comprehension_errors: str = None,
+        comprehension_suggestions: str = None,
+        # Metadata
+        generated_by: str = "realtime_agent"
+    ) -> Feedback:
+        """Create a comprehensive feedback record for a session"""
+        feedback = Feedback(
+            session_id=session_id,
+            # General feedback
+            general_feedback=general_feedback,
+            general_errors=general_errors,
+            general_suggestions=general_suggestions,
+            overall_score=overall_score,
+            # Pronunciation
+            pronunciation_score=pronunciation_score,
+            pronunciation_summary=pronunciation_summary,
+            pronunciation_errors=pronunciation_errors,
+            pronunciation_suggestions=pronunciation_suggestions,
+            # Fluency
+            fluency_score=fluency_score,
+            fluency_summary=fluency_summary,
+            fluency_errors=fluency_errors,
+            fluency_suggestions=fluency_suggestions,
+            # Grammar
+            grammar_score=grammar_score,
+            grammar_summary=grammar_summary,
+            grammar_errors=grammar_errors,
+            grammar_suggestions=grammar_suggestions,
+            # Expressions
+            expressions_score=expressions_score,
+            expressions_summary=expressions_summary,
+            expressions_errors=expressions_errors,
+            expressions_suggestions=expressions_suggestions,
+            # Vocabulary
+            vocabulary_score=vocabulary_score,
+            vocabulary_summary=vocabulary_summary,
+            vocabulary_errors=vocabulary_errors,
+            vocabulary_suggestions=vocabulary_suggestions,
+            # Comprehension
+            comprehension_score=comprehension_score,
+            comprehension_summary=comprehension_summary,
+            comprehension_errors=comprehension_errors,
+            comprehension_suggestions=comprehension_suggestions,
+            # Metadata
+            generated_by=generated_by
+        )
+        
+        db.add(feedback)
+        db.commit()
+        db.refresh(feedback)
+        
+        logger.info(f"✅ Created comprehensive feedback for session {session_id}")
+        return feedback
     
     @staticmethod
     def get_user_feedback_history(
         db: Session,
         user_id: str,
-        pillar: Optional[FeedbackPillar] = None,
         limit: int = 100
     ) -> List[Feedback]:
-        """Get feedback history for a user, optionally filtered by pillar"""
+        """Get feedback history for a user"""
         query = (
             db.query(Feedback)
             .join(SessionModel)
             .filter(SessionModel.user_id == user_id)
         )
-        
-        if pillar:
-            query = query.filter(Feedback.pillar == pillar)
         
         return (
             query.order_by(desc(Feedback.created_at))

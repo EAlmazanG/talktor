@@ -32,14 +32,7 @@ class Speaker(enum.Enum):
     AI = "ai"
 
 
-class FeedbackPillar(enum.Enum):
-    """The 6 feedback pillars from PRD"""
-    PRONUNCIATION = "pronunciation"
-    FLUENCY = "fluency"
-    GRAMMAR = "grammar"
-    EXPRESSIONS = "expressions"
-    VOCABULARY = "vocabulary"
-    COMPREHENSION = "comprehension"
+# FeedbackPillar enum removed - now using individual columns per pillar
 
 
 class Session(Base):
@@ -119,36 +112,68 @@ class Transcript(Base):
 
 class Feedback(Base):
     """
-    Feedback model - Feedback estructurado por pilares
-    Stores structured feedback analysis for each session
+    Feedback model - Comprehensive feedback per session
+    Stores complete feedback analysis for each session in a single row
     """
     __tablename__ = "feedback"
     
     # Primary key
     id = Column(Integer, primary_key=True, index=True)
     
-    # Foreign key to session
-    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False, index=True)
+    # Foreign key to session (one feedback per session)
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False, index=True, unique=True)
     
-    # Feedback details
-    pillar = Column(Enum(FeedbackPillar), nullable=False)
-    score = Column(Float, nullable=False)              # Score 1-10
-    feedback_text = Column(Text, nullable=False)       # Detailed feedback
+    # General feedback
+    general_feedback = Column(Text, nullable=True)         # Overall feedback summary
+    general_errors = Column(JSON, nullable=True)           # General errors array
+    general_suggestions = Column(JSON, nullable=True)      # General suggestions array
+    overall_score = Column(Float, nullable=True)           # Overall score 0-10
     
-    # Structured data
-    examples = Column(JSON, nullable=True)             # Examples from conversation
-    suggestions = Column(JSON, nullable=True)          # Improvement suggestions
-    errors = Column(JSON, nullable=True)               # Specific errors found
+    # PRONUNCIATION pillar
+    pronunciation_score = Column(Float, nullable=True)      # Score 0-10
+    pronunciation_summary = Column(Text, nullable=True)     # Summary for pronunciation
+    pronunciation_errors = Column(JSON, nullable=True)      # Pronunciation errors array
+    pronunciation_suggestions = Column(JSON, nullable=True) # Pronunciation suggestions array
+    
+    # FLUENCY pillar
+    fluency_score = Column(Float, nullable=True)           # Score 0-10
+    fluency_summary = Column(Text, nullable=True)          # Summary for fluency
+    fluency_errors = Column(JSON, nullable=True)           # Fluency errors array
+    fluency_suggestions = Column(JSON, nullable=True)      # Fluency suggestions array
+    
+    # GRAMMAR pillar
+    grammar_score = Column(Float, nullable=True)           # Score 0-10
+    grammar_summary = Column(Text, nullable=True)          # Summary for grammar
+    grammar_errors = Column(JSON, nullable=True)           # Grammar errors array
+    grammar_suggestions = Column(JSON, nullable=True)      # Grammar suggestions array
+    
+    # EXPRESSIONS pillar
+    expressions_score = Column(Float, nullable=True)       # Score 0-10
+    expressions_summary = Column(Text, nullable=True)      # Summary for expressions
+    expressions_errors = Column(JSON, nullable=True)       # Expressions errors array
+    expressions_suggestions = Column(JSON, nullable=True)  # Expressions suggestions array
+    
+    # VOCABULARY pillar
+    vocabulary_score = Column(Float, nullable=True)        # Score 0-10
+    vocabulary_summary = Column(Text, nullable=True)       # Summary for vocabulary
+    vocabulary_errors = Column(JSON, nullable=True)        # Vocabulary errors array
+    vocabulary_suggestions = Column(JSON, nullable=True)   # Vocabulary suggestions array
+    
+    # COMPREHENSION pillar
+    comprehension_score = Column(Float, nullable=True)     # Score 0-10
+    comprehension_summary = Column(Text, nullable=True)    # Summary for comprehension
+    comprehension_errors = Column(JSON, nullable=True)     # Comprehension errors array
+    comprehension_suggestions = Column(JSON, nullable=True) # Comprehension suggestions array
     
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    generated_by = Column(String(50), default="standard_agent")  # Which agent generated this
+    generated_by = Column(String(50), default="realtime_agent")  # Which agent generated this
     
     # Relationships
     session = relationship("Session", back_populates="feedback_items")
     
     def __repr__(self):
-        return f"<Feedback(id={self.id}, session_id={self.session_id}, pillar='{self.pillar}', score={self.score})>"
+        return f"<Feedback(id={self.id}, session_id={self.session_id}, overall_score={self.overall_score})>"
 
 
 # Additional models for future implementation (homework, flashcards, etc.)
