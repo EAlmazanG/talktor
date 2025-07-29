@@ -33,7 +33,8 @@
 
 #### 📁 **Core** (`/backend/core/`)
 - `config.py` - Configuración centralizada con Pydantic Settings
-- `logging.py` - Sistema de logging estructurado
+- `logging.py` - Sistema de logging estructurado con archivos timestampeados
+- `log_utils.py` - Utilidades para gestión y análisis de logs
 - `colors.py` - Utilidades para colores en terminal
 
 #### 📁 **Services** (`/backend/services/`)
@@ -88,6 +89,8 @@
 - `dev_stop.sh` - Parar entorno de desarrollo
 - `prod_start.sh` - Iniciar entorno de producción
 - `prod_stop.sh` - Parar entorno de producción
+- `view_logs.py` - Visor de logs con búsqueda y seguimiento
+- `demo_logging.py` - Demostración del sistema de logging
 
 ### 📂 **FRONTEND** (`/frontend/`)
 **Frontend (vacío actualmente)**

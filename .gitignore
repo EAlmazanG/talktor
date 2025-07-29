@@ -4,3 +4,10 @@ openai_setup.py
 talktor-env/
 /talktor-env
 .env
+
+# Log files
+*.log
+logs/*.log
+backend/logs/*.log
+!logs/.gitkeep
+!backend/logs/.gitkeep

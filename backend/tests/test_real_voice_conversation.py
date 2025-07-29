@@ -7,17 +7,32 @@ waits for the user to finish talking, and then processes the real conversation d
 import asyncio
 import sys
 import os
+import logging
 from datetime import datetime, timezone
 
 # Add the backend directory to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import logging setup FIRST
+from core.logging import setup_logging
 from services.conversation_flow import ConversationFlow
 from services.persistence_service import persistence_service
+
+# Setup enhanced logging with file output
+setup_logging(
+    level="DEBUG",
+    enable_file_logging=True,
+    log_directory="logs",
+    service_name="test_real_voice_conversation"
+)
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 async def test_real_voice_conversation_flow():
     """Test complete flow with REAL voice conversation"""
+    logger.info("🎤 Starting REAL VOICE CONVERSATION TEST")
     print("🎤 REAL VOICE CONVERSATION TEST")
     print("=" * 80)
     print("This test will:")
@@ -30,11 +45,14 @@ async def test_real_voice_conversation_flow():
     print("=" * 80)
     
     user_id = "test_user_real_voice"
+    logger.info(f"Test initialized for user: {user_id}")
     
     try:
         # Step 1: Initialize ConversationFlow
+        logger.info("Step 1: Initializing ConversationFlow")
         print("\n📋 Step 1: Initializing ConversationFlow...")
         flow = ConversationFlow(user_id=user_id)
+        logger.info(f"ConversationFlow initialized successfully")
         print(f"✅ ConversationFlow initialized for user: {user_id}")
         print(f"   📦 PersistenceService: {flow.persistence.__class__.__name__}")
         print(f"   🤖 StandardAgent: {flow.standard_agent.__class__.__name__}")
