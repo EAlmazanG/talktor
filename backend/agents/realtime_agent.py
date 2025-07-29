@@ -401,9 +401,32 @@ Return ONLY this JSON structure:
             # Send the feedback request (silent generation)
             await self.openai_service.send_message(self.session_state, feedback_request)
             
-            # Wait for feedback to be generated
+            # Wait for feedback to be generated with verification
             logger.info("⏳ Waiting for feedback generation...")
-            await asyncio.sleep(3)  # Wait for feedback generation
+            feedback_received = False
+            max_wait_time = 10  # Maximum 10 seconds
+            check_interval = 0.5  # Check every 500ms
+            
+            for i in range(int(max_wait_time / check_interval)):
+                await asyncio.sleep(check_interval)
+                
+                # Check if we received feedback in the conversation
+                if self.session_state and hasattr(self.session_state, 'messages'):
+                    messages = self.session_state.messages
+                    # Look for recent AI message that might be feedback
+                    for message in reversed(messages[-3:]):  # Check last 3 messages
+                        if message.get('role') == 'assistant':
+                            content = message.get('content', '')
+                            if 'feedback_type' in content or 'conversation_analysis' in content:
+                                feedback_received = True
+                                logger.info(f"✅ Feedback received after {(i+1)*check_interval:.1f}s")
+                                break
+                    
+                    if feedback_received:
+                        break
+            
+            if not feedback_received:
+                logger.warning(f"⚠️ No feedback received after {max_wait_time}s - continuing without feedback")
             
             # Mark session as ending
             if self.session_state:

@@ -147,6 +147,7 @@ class ConversationFlow:
             
             if feedback_data:
                 # Return the feedback in the expected format
+                logger.info("✅ Found real AI-generated feedback from RealtimeAgent")
                 return {
                     "overall_score": feedback_data.get("overall_score", 7.0),
                     "summary": feedback_data.get("summary", "Conversation analysis completed"),
@@ -155,12 +156,12 @@ class ConversationFlow:
                     "generated_at": datetime.now().isoformat()
                 }
             else:
-                logger.warning("⚠️ No AI feedback found in conversation, using fallback")
-                return self._get_fallback_feedback()
+                logger.warning("⚠️ No AI feedback found in conversation - feedback will be empty")
+                return None  # Return None instead of fallback
             
         except Exception as e:
             logger.error(f"❌ Error extracting feedback: {e}")
-            return self._get_fallback_feedback()
+            return None  # Return None instead of fallback on error
     
     def _get_fallback_feedback(self) -> Dict[str, Any]:
         """Return fallback feedback when AI feedback is not available"""

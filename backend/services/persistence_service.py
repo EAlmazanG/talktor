@@ -300,7 +300,7 @@ class PersistenceService:
         session_id: str,
         user_id: str,
         conversation_json: Dict[str, Any],
-        feedback_data: Dict[str, Any],
+        feedback_data: Optional[Dict[str, Any]],
         duration_seconds: int,
         agent_type: Union[AgentType, str] = AgentType.REALTIME,
         mode: Union[ConversationMode, str] = ConversationMode.FREE_TOPIC,
@@ -364,7 +364,12 @@ class PersistenceService:
                 # 3. Save feedback
                 logger.info(f"   📊 Step 3: Saving feedback data...")
                 feedback_items = []
-                pillars = feedback_data.get("pillars", {})
+                
+                if feedback_data is None:
+                    logger.info("   ⚠️ No feedback data provided - skipping feedback save")
+                    pillars = {}
+                else:
+                    pillars = feedback_data.get("pillars", {})
                 pillar_mapping = {
                     "pronunciation": FeedbackPillar.PRONUNCIATION,
                     "fluency": FeedbackPillar.FLUENCY,
