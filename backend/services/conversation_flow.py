@@ -163,25 +163,6 @@ class ConversationFlow:
             logger.error(f"❌ Error extracting feedback: {e}")
             return None  # Return None instead of fallback on error
     
-    def _get_fallback_feedback(self) -> Dict[str, Any]:
-        """Return fallback feedback when AI feedback is not available"""
-        return {
-            "overall_score": 7.0,
-            "summary": "Feedback generation unavailable - using default assessment",
-            "pillars": {
-                "pronunciation": {"score": 7.0, "feedback": "Good pronunciation overall", "examples": [], "suggestions": []},
-                "fluency": {"score": 7.0, "feedback": "Decent conversational flow", "examples": [], "suggestions": []},
-                "grammar": {"score": 7.0, "feedback": "Grammar needs some work", "examples": [], "suggestions": []},
-                "expressions": {"score": 7.0, "feedback": "Good use of expressions", "examples": [], "suggestions": []},
-                "vocabulary": {"score": 7.0, "feedback": "Adequate vocabulary range", "examples": [], "suggestions": []},
-                "comprehension": {"score": 7.0, "feedback": "Good understanding", "examples": [], "suggestions": []}
-            },
-            "source": "fallback",
-            "generated_at": datetime.now().isoformat()
-        }
-    
-
-    
 
     
     def is_active(self) -> bool:
