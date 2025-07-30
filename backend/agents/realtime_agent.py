@@ -177,7 +177,7 @@ class RealtimeAgent:
         
         if delta and delta.strip():
             self.session_state.add_user_transcript(delta)
-            logger.debug(f"User transcript delta: '{delta}'")
+            # Removed word-by-word delta logging to reduce noise
         else:
             logger.debug("Received empty delta")
     
@@ -213,7 +213,7 @@ class RealtimeAgent:
         """Handle AI transcription delta"""
         delta = message.get('delta', '')
         self.session_state.add_ai_transcript(delta)
-        logger.debug(f"AI transcript delta: {delta}")
+        # Removed word-by-word delta logging to reduce noise
     
     async def _handle_ai_transcription_completed(self, message: Dict[str, Any]):
         """Handle completed AI transcription"""
