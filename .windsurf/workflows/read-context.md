@@ -2,13 +2,16 @@
 description: 
 ---
 
-1. Revisa el contexto del proyecto:
+Run the following actions to ensure you have full context about the project and have correctly activated/configured the working environment.
+
+Review the project context:
 ./CONTEXT_REPOSITORY.md
 
-2. Revisa el contexto de la arquitectura:
+Review the architecture context:
 ./README_ARCHITECTURE.md
 
-3. Echa un vistazo a los .py de las distintas carpetas de servicios, tests y scripts teniendo en cuenta el contexto para completar la info que tienes del proyecto.
+Take a look at the .py files in the different services, tests, and scripts folders, using the context to complete your understanding of the project.
 
-4. Activa el entorno local del proyecto, localizado en ./talktor-env
-No crees ni modifiques ningun archivo, dime si lo has entendido todo y quedate a la espera de los siguientes comandos.
+Activate the local project environment located at ./talktor-env
+
+Do not create or modify any files. Confirm if you have understood everything and wait for the next commands.
