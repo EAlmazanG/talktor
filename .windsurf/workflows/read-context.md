@@ -2,7 +2,7 @@
 description: 
 ---
 
-Run the following actions to ensure you have full context about the project and have correctly activated/configured the working environment.
+Use the MCPs to run the following actions to ensure you have full context about the project and have correctly activated/configured the working environment.
 
 Review the project context:
 ./CONTEXT_REPOSITORY.md
