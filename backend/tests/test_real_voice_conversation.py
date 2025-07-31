@@ -61,10 +61,7 @@ async def test_real_voice_conversation_flow():
         print("\n🎤 Step 2: Starting REAL voice conversation...")
         print("   🔧 Initializing RealtimeAgent with audio...")
         print("   🎧 Make sure your microphone and speakers are working!")
-        
-        # Start the conversation - this will create a real RealtimeAgent
-        session_id = await flow.start_conversation()
-        
+
         print(f"\n✅ Voice conversation started!")
         print(f"   🎆 Session ID: {session_id}")
         print(f"   🤖 Agent type: {type(flow.realtime_agent).__name__}")
@@ -82,6 +79,9 @@ async def test_real_voice_conversation_flow():
         print("5. ⏳ The test will continue automatically after ending")
         print("=" * 60)
         print("\n🎤 CONVERSATION IS LIVE - START SPEAKING NOW!")
+
+        # Start the conversation - this will create a real RealtimeAgent
+        session_id = await flow.start_conversation()
         
         # Wait for the conversation to be active
         conversation_active = True
