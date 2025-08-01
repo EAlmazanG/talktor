@@ -119,6 +119,9 @@ async def test_real_voice_conversation_flow():
         print("\n🔄 Step 4: Processing REAL conversation data...")
         print("   📊 Getting conversation summary from RealtimeAgent...")
         
+        # Test the new generate_conversation_summary_and_feedback tool
+        print("   🔧 Testing generate_conversation_summary_and_feedback tool...")
+        
         # Debug: Check session state before processing
         if flow.realtime_agent and hasattr(flow.realtime_agent, 'session_state'):
             session_state = flow.realtime_agent.session_state
@@ -141,13 +144,38 @@ async def test_real_voice_conversation_flow():
         # End the conversation and process everything
         results = await flow.end_conversation()
         
+        # Test the generate_conversation_summary_and_feedback tool
+        # This should trigger the _handle_conversation_termination method in RealtimeAgent
+        if flow.realtime_agent and hasattr(flow.realtime_agent, 'session_state') and flow.realtime_agent.session_state:
+            print("   🔄 Testing direct call to generate_conversation_summary_and_feedback...")
+            # Direct call to the method
+            result = await flow.realtime_agent.generate_conversation_summary_and_feedback()
+            print(f"   ✅ Direct method call result: {result}")
+            
+            print("   🔄 Testing OpenAI function call to generate_conversation_summary_and_feedback...")
+            # Simulate the tool call from OpenAI
+            if hasattr(flow.realtime_agent, 'conversation_service'):
+                await flow.realtime_agent.conversation_service.handle_function_call(
+                {
+                    "name": "generate_conversation_summary_and_feedback",
+                    "arguments": "{}",
+                    "call_id": "test_call_id"
+                },
+                flow.realtime_agent.session_state
+            )
+                print("   ✅ OpenAI function call completed successfully")
+            else:
+                print("   ❌ Cannot test OpenAI function call: realtime_agent has no conversation_service attribute")
+
         print("\n✅ Conversation processing completed!")
         print(f"   🎆 Session ID: {results['session_id']}")
         print(f"   👤 User ID: {results['user_id']}")
         print(f"   ⏱️ Duration: {results['duration_seconds']}s ({results['duration_seconds']//60}m {results['duration_seconds']%60}s)")
         print(f"   💬 Messages: {results['message_count']}")
         print(f"   🏁 Status: {results['status']}")
-        
+
+        # Feedback is already generated and saved by the end_conversation method
+
         # Step 5: Verify database persistence
         print("\n💾 Step 5: Verifying database persistence...")
         

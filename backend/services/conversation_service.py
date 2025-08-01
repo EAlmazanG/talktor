@@ -3,11 +3,14 @@ Conversation service for handling conversation logic and function calls
 """
 import json
 import logging
+import asyncio
 from typing import Dict, Any
 
 from .session_state import SessionState
+from core.colors import colorize, Colors
+from core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ConversationService:
@@ -63,6 +66,20 @@ class ConversationService:
             if name == "continue_conversation":
                 message = function_call_args.get("message", "")
                 result = self.process_english_conversation(message, session_state)
+                return result, call_id
+            elif name == "generate_conversation_summary_and_feedback":
+                logger.info("🔄 Agent requested conversation summary and feedback")
+                # Trigger conversation termination in the RealtimeAgent
+                # The agent will handle this by itself, so we just acknowledge the request
+                result = json.dumps({
+                    "status": "success",
+                    "message": "Generating conversation summary and feedback..."
+                })
+                
+                # Schedule the conversation termination to happen after we return
+                if hasattr(session_state, "agent") and session_state.agent:
+                    asyncio.create_task(session_state.agent._handle_conversation_termination())
+                
                 return result, call_id
             else:
                 logger.warning(f"Unknown function call: {name}")

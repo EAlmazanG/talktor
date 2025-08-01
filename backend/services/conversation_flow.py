@@ -9,7 +9,7 @@ import logging
 
 from core.logging import get_logger
 from core.colors import colorize, Colors
-from agents.realtime_agent import RealtimeAgent
+# Import RealtimeAgent lazily to avoid circular imports
 from agents.standard_agent import StandardAgent
 from services.persistence_service import persistence_service
 from db.models import AgentType, ConversationMode
@@ -53,12 +53,13 @@ class ConversationFlow:
                 mode=ConversationMode.FREE_TOPIC  # Updated to use existing enum
             )
             
-            # Initialize RealtimeAgent
+            # Initialize RealtimeAgent (lazy import to avoid circular imports)
+            from agents.realtime_agent import RealtimeAgent
             self.realtime_agent = RealtimeAgent(session_id=session_id, user_id=self.user_id)
             
             # Start the conversation
             logger.info(colorize(f"🚀 Starting conversation flow for session: {session_id}", Colors.BRIGHT_GREEN))
-            await self.realtime_agent.start_conversation()
+            await self.realtime_agent.start()
             
             return session_id
             
