@@ -40,7 +40,6 @@ Key guidelines:
 - Adapt to the student's level
 - Be patient and encouraging
 - Use the continue_conversation function when appropriate to extend the conversation
-- When the student says goodbye or indicates they want to end the conversation, use the generate_conversation_summary_and_feedback tool to provide a summary and detailed feedback in JSON format
 
 Remember: You're helping someone learn English through conversation practice.""",
                 "voice": settings.openai_voice,
@@ -72,16 +71,6 @@ Remember: You're helping someone learn English through conversation practice."""
                                 }
                             },
                             "required": ["message"]
-                        }
-                    },
-                    {
-                        "type": "function",
-                        "name": "generate_conversation_summary_and_feedback",
-                        "description": "Generate a summary of the conversation and detailed feedback on the student's English skills. Use this when the student says goodbye or wants to end the conversation.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {},
-                            "required": []
                         }
                     }
                 ]

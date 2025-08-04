@@ -40,9 +40,6 @@ class SessionState:
     # Session configuration
     session_config: Optional[Dict[str, Any]] = None
     
-    # Reference to the agent handling this session
-    agent: Optional[Any] = None
-    
     def reset_transcripts(self):
         """Reset transcript buffers"""
         self.user_transcript = ""
