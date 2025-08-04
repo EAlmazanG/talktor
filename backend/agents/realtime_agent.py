@@ -345,16 +345,8 @@ class RealtimeAgent:
     async def generate_conversation_summary_and_feedback(self):
         """Public method to generate conversation summary and feedback in JSON format
         This method is called by the OpenAI function tool and exposes the conversation termination functionality
-        
-        Returns the JSON feedback directly without saving to database
         """
-        logger.info(colorize("📊 Generating conversation summary and feedback...", Colors.BRIGHT_GREEN))
         summary_feedback = await self._handle_conversation_termination()
-        
-        # Make sure we store the feedback for test access
-        if not hasattr(self, 'last_feedback') or self.last_feedback is None:
-            self.last_feedback = summary_feedback
-            
         return summary_feedback
         
     async def _handle_conversation_termination(self):
@@ -434,9 +426,6 @@ class RealtimeAgent:
                 "overall_score": 7.8
             }
             
-            # Store the feedback in the instance for access by tests
-            self.last_feedback = summary_feedback
-            
             # Convert the summary_feedback to a JSON string
             json_feedback = json.dumps(summary_feedback, indent=2)
             
@@ -469,8 +458,6 @@ class RealtimeAgent:
             
         except Exception as e:
             logger.error(f"❌ Error during conversation termination: {str(e)}")
-            # Even on error, make sure to set last_feedback to None
-            self.last_feedback = None
             logger.error(traceback.format_exc())
             # Force close the session even if there's an error
             if self.session_state:
