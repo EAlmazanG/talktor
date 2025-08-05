@@ -82,34 +82,42 @@ class ConversationService:
                 
                 return result, call_id
             elif name == "enviar_feedback_conversacion":
-                logger.info("📝 Agent requested to send conversation feedback")
+                logger.info(colorize("📝 Agent requested to send conversation feedback", Colors.BRIGHT_GREEN))
                 # Get the feedback data from the function call
                 resumen = function_call_args.get("resumen_conversacion", "")
                 feedback = function_call_args.get("feedback_tutor", "")
                 
+                # Log the complete function call arguments for debugging
+                logger.info(f"📥 Received function call arguments: {json.dumps(function_call_args, indent=2)[:500]}...")
+                
                 # Log the received feedback data for debugging
-                logger.debug(f"Received feedback summary: {resumen[:100]}...")
-                logger.debug(f"Received feedback content: {feedback[:100]}...")
+                logger.info(f"📋 Received feedback summary ({len(resumen)} chars): {resumen[:100]}...")
+                logger.info(f"💬 Received feedback content ({len(feedback)} chars): {feedback[:100]}...")
                 
                 # Validate feedback data
                 if not resumen or len(resumen) < 10:
-                    logger.warning("⚠️ Received empty or very short conversation summary")
+                    logger.warning(colorize("⚠️ Received empty or very short conversation summary", Colors.BRIGHT_YELLOW))
                 if not feedback or len(feedback) < 10:
-                    logger.warning("⚠️ Received empty or very short feedback content")
+                    logger.warning(colorize("⚠️ Received empty or very short feedback content", Colors.BRIGHT_YELLOW))
                 
                 # Store the feedback in the session state for later use
                 if hasattr(session_state, "agent") and session_state.agent:
                     # Store the feedback in the agent for later retrieval
-                    session_state.agent.conversation_feedback = {
-                        "resumen": resumen,
-                        "feedback": feedback,
-                        "timestamp": datetime.now().isoformat()
-                    }
-                    logger.info("✅ Stored conversation feedback in session state")
-                    logger.info(f"Feedback summary length: {len(resumen)} chars")
-                    logger.info(f"Feedback content length: {len(feedback)} chars")
+                    try:
+                        session_state.agent.conversation_feedback = {
+                            "resumen": resumen,
+                            "feedback": feedback,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                        logger.info(colorize("✅ Successfully stored conversation feedback in agent", Colors.BRIGHT_GREEN))
+                        logger.info(f"📊 Feedback summary length: {len(resumen)} chars")
+                        logger.info(f"📊 Feedback content length: {len(feedback)} chars")
+                    except Exception as store_error:
+                        logger.error(colorize(f"❌ Error storing feedback in agent: {str(store_error)}", Colors.BRIGHT_RED))
+                        import traceback
+                        logger.error(traceback.format_exc())
                 else:
-                    logger.error("❌ Could not store feedback - agent not available in session state")
+                    logger.error(colorize("❌ Could not store feedback - agent not available in session state", Colors.BRIGHT_RED))
                 
                 result = json.dumps({
                     "status": "success",

@@ -72,7 +72,8 @@ async def test_real_voice_conversation_flow():
         print("1. 🗣️  Start speaking in English")
         print("2. 🤖 The AI will respond with voice")
         print("3. 💬 Have a natural conversation (2-3 minutes recommended)")
-        print("4. 🛑 Say 'stop', 'end', 'para', or 'termina' to end")
+        print("4. 🛑 Say 'goodbye' or 'thank you' to end the conversation")
+        print("   💡 TIP: Have a conversation of at least 2-3 minutes for good feedback")
         print("5. ⏳ The test will continue automatically after ending")
         print("=" * 60)
         print("\n🎤 CONVERSATION IS LIVE - START SPEAKING NOW!")
@@ -136,7 +137,40 @@ async def test_real_voice_conversation_flow():
         
         print("   💾 Saving to database with PersistenceService...")
         
-        # End the conversation and process everything
+        # Wait longer to allow automatic feedback generation
+        print("   ⏳ Waiting for feedback generation (20 seconds)...")
+        
+        # Wait in small increments and check for feedback
+        max_wait = 20  # seconds
+        check_interval = 2  # seconds
+        waited = 0
+        
+        while waited < max_wait:
+            # Check if feedback is already available
+            if flow.realtime_agent and flow.realtime_agent.conversation_feedback:
+                print(f"   ✅ Feedback automatically generated after {waited} seconds!")
+                break
+                
+            # Wait a bit more
+            await asyncio.sleep(check_interval)
+            waited += check_interval
+            print(f"   ⏳ Still waiting for feedback... ({waited}/{max_wait} seconds)")
+        
+        # Final check for feedback
+        if flow.realtime_agent and flow.realtime_agent.conversation_feedback:
+            feedback = flow.realtime_agent.conversation_feedback
+            print("\n📝 CONVERSATION FEEDBACK:")
+            print("=" * 60)
+            print(f"   📋 Summary: {feedback.get('resumen', 'N/A')[:100]}...")
+            print(f"   💬 Feedback: {feedback.get('feedback', 'N/A')[:100]}...")
+            print(f"   📅 Timestamp: {feedback.get('timestamp', 'N/A')}")
+            print("=" * 60)
+        else:
+            print("   ⚠️ No feedback was automatically generated")
+            print("   💡 TIP: Make sure to have a longer conversation (2-3 minutes) and end with 'goodbye' or 'thank you'")
+        
+        # Process the conversation
+        print("   🔄 Processing conversation results...")
         results = await flow.end_conversation()
         
         # End conversation processing

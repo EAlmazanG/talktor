@@ -311,7 +311,7 @@ class RealtimeAgent:
         # ONLY accept very clear, unambiguous termination commands
         clear_termination_words = [
             "stop", "end", "finish", "quit", "bye", "goodbye", "exit", "done", 
-            "para", "termina", "finaliza", "adios", "chao"
+            "para", "termina", "finaliza", "adios", "chao", "thanks", "thankyou", "thank"
         ]
         
         # Must be EXACTLY one of these words, or with simple modifiers
@@ -327,7 +327,8 @@ class RealtimeAgent:
             clear_two_word_patterns = [
                 ("stop", "now"), ("end", "now"), ("finish", "now"),
                 ("that's", "all"), ("i'm", "done"), ("we're", "done"),
-                ("stop", "it"), ("end", "it"), ("finish", "it")
+                ("stop", "it"), ("end", "it"), ("finish", "it"),
+                ("thank", "you"), ("thanks", "bye"), ("goodbye", "now")
             ]
             
             # Handle contractions
@@ -359,77 +360,47 @@ class RealtimeAgent:
         try:
             logger.info(colorize("🔴 Starting conversation termination...", Colors.BRIGHT_YELLOW))
             
-            # Mark session as ending
-            if self.session_state:
-                # Send a special message to the model to generate feedback before ending
-                if self.session_state.websocket_connection and self.conversation_feedback is None:
+            # Keep connection open and wait for feedback
+            if self.session_state and self.session_state.websocket_connection:
+                # Wait for feedback to be generated automatically
+                if self.conversation_feedback is None:
                     try:
-                        # Send a message to the model requesting feedback
-                        logger.info("📝 Requesting feedback before ending conversation...")
+                        # Just wait for the model to generate feedback on its own
+                        # The model should detect the termination command and generate feedback
+                        wait_time = 20  # seconds
+                        logger.info(f"⏳ Waiting for automatic feedback generation ({wait_time} seconds)...")
                         
-                        # Create a more detailed and explicit message for feedback generation
-                        feedback_request_message = {
-                            "type": "message",
-                            "role": "system",
-                            "content": (
-                                "CRITICAL INSTRUCTION: The conversation is now ending. You MUST perform these two actions in order:\n\n"
-                                "1. FIRST: Call the 'enviar_feedback_conversacion' function NOW with:\n"
-                                "   - A detailed summary of the conversation topics\n"
-                                "   - Specific feedback on the student's English skills (pronunciation, grammar, vocabulary, etc.)\n"
-                                "   - Highlight both strengths and areas for improvement\n\n"
-                                "2. ONLY AFTER completing step 1: Call the 'end_conversation' function\n\n"
-                                "This feedback is ABSOLUTELY MANDATORY and critical for the student's learning experience.\n"
-                                "DO NOT SKIP THIS STEP under any circumstances.\n"
-                                "RESPOND IMMEDIATELY with the function call - do not add any other text."
-                            )
-                        }
+                        # Wait in small increments to check for feedback
+                        check_interval = 1  # seconds
+                        waited = 0
                         
-                        # Send the enhanced feedback request
-                        await self.openai_service.send_message(self.session_state, feedback_request_message)
-                        
-                        # Wait for feedback with active polling
-                        max_attempts = 5
-                        wait_time_per_attempt = 5  # seconds
-                        
-                        logger.info(f"⏳ Actively waiting for feedback generation (max {max_attempts * wait_time_per_attempt} seconds)...")
-                        
-                        for attempt in range(1, max_attempts + 1):
-                            # Wait a bit before checking
-                            await asyncio.sleep(wait_time_per_attempt)
-                            
-                            # Check if feedback was generated
-                            if self.conversation_feedback is not None:
-                                logger.info(f"✅ Feedback successfully generated on attempt {attempt}/{max_attempts}")
-                                logger.info(f"📝 Feedback summary length: {len(self.conversation_feedback.get('resumen', ''))} chars")
-                                logger.info(f"📝 Feedback content length: {len(self.conversation_feedback.get('feedback', ''))} chars")
+                        while waited < wait_time and self.session_state.websocket_connection:
+                            # Check if feedback is already available
+                            if self.conversation_feedback:
+                                logger.info(f"✅ Feedback automatically generated after {waited} seconds!")
+                                logger.info(f"📊 Feedback summary length: {len(self.conversation_feedback.get('resumen', ''))} chars")
+                                logger.info(f"📊 Feedback content length: {len(self.conversation_feedback.get('feedback', ''))} chars")
                                 break
-                            else:
-                                # If not generated yet, send another reminder
-                                if attempt < max_attempts:
-                                    logger.info(f"⏳ Attempt {attempt}/{max_attempts}: No feedback yet, sending reminder...")
-                                    
-                                    # Send a more urgent reminder
-                                    reminder_message = {
-                                        "type": "message",
-                                        "role": "system",
-                                        "content": (
-                                            f"URGENT REMINDER (Attempt {attempt}/{max_attempts}): You MUST call the 'enviar_feedback_conversacion' function NOW " 
-                                            "before ending the conversation. This is MANDATORY and cannot be skipped. " 
-                                            "Call the function IMMEDIATELY with conversation summary and feedback."
-                                        )
-                                    }
-                                    await self.openai_service.send_message(self.session_state, reminder_message)
+                                
+                            # Wait a bit more
+                            await asyncio.sleep(check_interval)
+                            waited += check_interval
+                            
+                            if waited % 5 == 0:  # Log every 5 seconds
+                                logger.info(f"⏳ Still waiting for feedback... ({waited}/{wait_time} seconds)")
+                        
+                        # Final check if feedback was generated
+                        if not self.conversation_feedback:
+                            logger.warning("⚠️ No feedback was automatically generated after waiting")
                     except Exception as feedback_error:
                         logger.error(f"❌ Error during feedback generation: {str(feedback_error)}")
-                
-                # Final check if feedback was generated
-                if self.conversation_feedback is not None:
-                    logger.info("✅ Feedback successfully generated before ending conversation")
-                    logger.info(f"📊 Feedback data: {json.dumps(self.conversation_feedback, indent=2)}")
+                        import traceback
+                        logger.error(traceback.format_exc())
                 else:
-                    logger.warning("⚠️ No feedback was generated after multiple attempts")
-                
-                # Mark the session as inactive
+                    logger.info("✅ Feedback was already generated")
+            
+            # Only mark the session as inactive AFTER waiting for feedback
+            if self.session_state:
                 self.session_state.is_active = False
                 logger.info("✅ Session marked as inactive")
             
