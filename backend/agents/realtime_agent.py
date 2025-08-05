@@ -342,137 +342,23 @@ class RealtimeAgent:
         
         return False
     
-    async def generate_conversation_summary_and_feedback(self):
-        """Public method to generate conversation summary and feedback in JSON format
-        This method is called by the OpenAI function tool and exposes the conversation termination functionality
-        
-        Returns the JSON feedback directly without saving to database
-        """
-        logger.info(colorize("📊 Generating conversation summary and feedback...", Colors.BRIGHT_GREEN))
-        summary_feedback = await self._handle_conversation_termination()
-        
-        # Make sure we store the feedback for test access
-        if not hasattr(self, 'last_feedback') or self.last_feedback is None:
-            self.last_feedback = summary_feedback
-            
-        return summary_feedback
-        
     async def _handle_conversation_termination(self):
-        """Handle conversation termination: Bye + Feedback Generation
-        Returns a JSON with conversation summary and feedback
+        """Handle conversation termination
         """
         try:
-            logger.info(colorize("🛑 Starting conversation termination: Bye + Feedback...", Colors.BRIGHT_YELLOW))
-            
-            # Step 2: Generate summary and feedback as JSON
-            logger.info("🤖 Generating conversation summary and feedback as JSON...")
-            
-            # Extract conversation text from session state
-            user_text = ""
-            assistant_text = ""
-            if hasattr(self.session_state, 'messages'):
-                for message in self.session_state.messages:
-                    if message.get('role') == 'user':
-                        user_text += message.get('content', '') + "\n"
-                    elif message.get('role') == 'assistant':
-                        assistant_text += message.get('content', '') + "\n"
-            
-            # Create summary and feedback JSON
-            summary_feedback = {
-                "feedback_type": "conversation_analysis",
-                "summary": {
-                    "conversation_duration": self.session_state.duration_seconds if hasattr(self.session_state, 'duration_seconds') else 0,
-                    "message_count": len(self.session_state.messages) if hasattr(self.session_state, 'messages') else 0,
-                    "user_text_length": len(user_text),
-                    "assistant_text_length": len(assistant_text),
-                    "topics_discussed": ["English conversation", "language practice"],
-                    "session_id": self.session_state.session_id
-                },
-                "general": {
-                    "feedback": "You had a good conversation in English. You were able to express your ideas clearly.",
-                    "errores": ["Occasional hesitation", "Some pronunciation issues"],
-                    "sugerencias": ["Practice speaking more fluently", "Work on pronunciation of difficult sounds"]
-                },
-                "pillars": {
-                    "pronunciation": {
-                        "score": 7.5,
-                        "resumen": "Good pronunciation with some areas for improvement",
-                        "errores": ["Difficulty with 'th' sound", "Stress on wrong syllables occasionally"],
-                        "sugerencias": ["Practice 'th' sound daily", "Listen to native speakers and mimic stress patterns"]
-                    },
-                    "fluency": {
-                        "score": 7.8,
-                        "resumen": "Generally smooth speech with occasional pauses",
-                        "errores": ["Hesitation when forming complex sentences", "Occasional unnatural pauses"],
-                        "sugerencias": ["Practice speaking at a steady pace", "Read aloud to improve flow"]
-                    },
-                    "grammar": {
-                        "score": 8.0,
-                        "resumen": "Good grammatical structure with minor errors",
-                        "errores": ["Occasional verb tense mistakes", "Article usage errors"],
-                        "sugerencias": ["Review past tense forms", "Practice using articles correctly"]
-                    },
-                    "expressions": {
-                        "score": 7.2,
-                        "resumen": "Some good expressions used but could be more varied",
-                        "errores": ["Limited range of expressions", "Some expressions used incorrectly"],
-                        "sugerencias": ["Learn 5 new expressions weekly", "Practice using idioms in context"]
-                    },
-                    "vocabulary": {
-                        "score": 7.5,
-                        "resumen": "Good basic vocabulary with room for more advanced terms",
-                        "errores": ["Limited specialized vocabulary", "Word choice sometimes imprecise"],
-                        "sugerencias": ["Read articles on various topics", "Keep a vocabulary journal"]
-                    },
-                    "comprehension": {
-                        "score": 8.5,
-                        "resumen": "Strong understanding of questions and context",
-                        "errores": ["Occasional misunderstanding of complex questions", "Sometimes needed repetition"],
-                        "sugerencias": ["Practice listening to podcasts", "Watch movies without subtitles"]
-                    }
-                },
-                "overall_score": 7.8
-            }
-            
-            # Store the feedback in the instance for access by tests
-            self.last_feedback = summary_feedback
-            
-            # Convert the summary_feedback to a JSON string
-            json_feedback = json.dumps(summary_feedback, indent=2)
-            
-            # Log the feedback
-            logger.info(f"📊 Conversation summary and feedback generated:\n{json_feedback}")
-            
-            # Send the JSON feedback as a text message
-            feedback_message = {
-                "type": "conversation.item.create",
-                "item": {
-                    "type": "message",
-                    "role": "assistant",
-                    "content": [{
-                        "type": "text",
-                        "text": json_feedback
-                    }]
-                }
-            }
-            
-            # Send the feedback message through the realtime API
-            await self.openai_service.send_message(self.session_state, feedback_message)
+            logger.info(colorize("🛑 Starting conversation termination...", Colors.BRIGHT_YELLOW))
             
             # Mark session as ending
             if self.session_state:
                 self.session_state.is_active = False
                 logger.info("✅ Session marked as inactive")
             
-            # Return the summary and feedback
-            return summary_feedback
+            return {"status": "conversation_ended"}
             
         except Exception as e:
             logger.error(f"❌ Error during conversation termination: {str(e)}")
-            # Even on error, make sure to set last_feedback to None
-            self.last_feedback = None
             logger.error(traceback.format_exc())
             # Force close the session even if there's an error
             if self.session_state:
                 self.session_state.is_active = False
-            return {"error": f"Failed to generate conversation summary and feedback: {str(e)}"}
+            return {"error": f"Failed to end conversation: {str(e)}"}

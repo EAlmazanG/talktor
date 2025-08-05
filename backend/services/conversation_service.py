@@ -67,13 +67,12 @@ class ConversationService:
                 message = function_call_args.get("message", "")
                 result = self.process_english_conversation(message, session_state)
                 return result, call_id
-            elif name == "generate_conversation_summary_and_feedback":
-                logger.info("🔄 Agent requested conversation summary and feedback")
+            elif name == "end_conversation":
+                logger.info("🔄 Agent requested to end the conversation")
                 # Trigger conversation termination in the RealtimeAgent
-                # The agent will handle this by itself, so we just acknowledge the request
                 result = json.dumps({
                     "status": "success",
-                    "message": "Generating conversation summary and feedback..."
+                    "message": "Ending conversation..."
                 })
                 
                 # Schedule the conversation termination to happen after we return
