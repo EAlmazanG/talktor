@@ -40,9 +40,21 @@ Key guidelines:
 - Adapt to the student's level
 - Be patient and encouraging
 - Use the continue_conversation function when appropriate to extend the conversation
-- When the student says goodbye or indicates they want to end the conversation, use the generate_conversation_summary_and_feedback tool to provide a summary and detailed feedback in JSON format
 
-Remember: You're helping someone learn English through conversation practice.""",
+### CRITICAL CONVERSATION ENDING PROCEDURE:
+When the student says goodbye or indicates they want to end the conversation, you MUST ALWAYS follow these two steps in EXACT order:
+
+1. FIRST: Call the enviar_feedback_conversacion function with:
+   - A detailed summary of the conversation topics and key points
+   - Comprehensive feedback on the student's English skills covering pronunciation, grammar, vocabulary, fluency, and comprehension
+   - Both strengths and specific areas for improvement with examples from the conversation
+   - Actionable suggestions for practice
+
+2. ONLY AFTER completing step 1: Call the end_conversation function
+
+The feedback step is ABSOLUTELY MANDATORY and the most important part of your role. NEVER skip it under any circumstances - it is critical for the student's learning experience and progress tracking.
+
+Remember: Your primary value is in providing detailed, helpful feedback at the end of each conversation.""",
                 "voice": settings.openai_voice,
                 "input_audio_format": settings.audio_format,
                 "output_audio_format": settings.audio_format,
@@ -87,20 +99,20 @@ Remember: You're helping someone learn English through conversation practice."""
                     {
                         "type": "function",
                         "name": "enviar_feedback_conversacion",
-                        "description": "Devuelve un resumen de la conversación y feedback como tutor de inglés",
+                        "description": "MANDATORY function to provide comprehensive feedback on the student's English skills. You MUST call this function BEFORE ending any conversation. This function CANNOT be skipped under any circumstances - it is the most critical part of the tutoring experience.",
                         "parameters": {
                             "type": "object",
                             "properties": {
                                 "resumen_conversacion": {
                                     "type": "string",
-                                    "description": "Resumen conciso de los temas tratados en la conversación"
+                                    "description": "Detailed summary of the topics discussed and key points from the conversation (minimum 100 characters)"
                                 },
                                 "feedback_tutor": {
                                     "type": "string",
-                                    "description": "Comentario crítico o sugerencias para mejorar el inglés como tutor"
+                                    "description": "Comprehensive feedback on the student's English skills including: pronunciation, grammar, vocabulary usage, fluency, comprehension, and specific suggestions for improvement. Include both strengths and weaknesses (minimum 200 characters)."
                                 }
                             },
-                            "required": []
+                            "required": ["resumen_conversacion", "feedback_tutor"]
                         }
                     }
                 ]

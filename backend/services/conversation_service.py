@@ -4,6 +4,7 @@ Conversation service for handling conversation logic and function calls
 import json
 import logging
 import asyncio
+from datetime import datetime
 from typing import Dict, Any
 
 from .session_state import SessionState
@@ -86,6 +87,16 @@ class ConversationService:
                 resumen = function_call_args.get("resumen_conversacion", "")
                 feedback = function_call_args.get("feedback_tutor", "")
                 
+                # Log the received feedback data for debugging
+                logger.debug(f"Received feedback summary: {resumen[:100]}...")
+                logger.debug(f"Received feedback content: {feedback[:100]}...")
+                
+                # Validate feedback data
+                if not resumen or len(resumen) < 10:
+                    logger.warning("⚠️ Received empty or very short conversation summary")
+                if not feedback or len(feedback) < 10:
+                    logger.warning("⚠️ Received empty or very short feedback content")
+                
                 # Store the feedback in the session state for later use
                 if hasattr(session_state, "agent") and session_state.agent:
                     # Store the feedback in the agent for later retrieval
@@ -95,6 +106,10 @@ class ConversationService:
                         "timestamp": datetime.now().isoformat()
                     }
                     logger.info("✅ Stored conversation feedback in session state")
+                    logger.info(f"Feedback summary length: {len(resumen)} chars")
+                    logger.info(f"Feedback content length: {len(feedback)} chars")
+                else:
+                    logger.error("❌ Could not store feedback - agent not available in session state")
                 
                 result = json.dumps({
                     "status": "success",

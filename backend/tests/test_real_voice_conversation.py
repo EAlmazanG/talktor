@@ -156,6 +156,19 @@ async def test_real_voice_conversation_flow():
         print("\n📊 Step 5: Displaying conversation summary...")
         print("   ✅ Conversation completed successfully")
         
+        # Display feedback information if available
+        if results.get('feedback'):
+            print("\n📝 Conversation Feedback:")
+            print("=" * 60)
+            feedback = results['feedback']
+            print(f"   📋 Source: {feedback.get('source', 'unknown')}")
+            print(f"   📅 Timestamp: {feedback.get('timestamp', 'N/A')}")
+            print(f"   📝 Summary: {feedback.get('resumen', 'No summary provided')}")
+            print(f"   💬 Feedback: {feedback.get('feedback', 'No feedback provided')}")
+            print("=" * 60)
+        else:
+            print("\n⚠️ No feedback was provided by the agent")
+        
         # Step 6: Show conversation transcript directly from session state
         print("\n📝 Step 6: Conversation Transcript:")
         print("=" * 60)
