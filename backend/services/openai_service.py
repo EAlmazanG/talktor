@@ -76,11 +76,30 @@ Remember: You're helping someone learn English through conversation practice."""
                     },
                     {
                         "type": "function",
-                        "name": "generate_conversation_summary_and_feedback",
-                        "description": "Generate a summary of the conversation and detailed feedback on the student's English skills. Use this when the student says goodbye or wants to end the conversation.",
+                        "name": "end_conversation",
+                        "description": "End the conversation with the student. Use this when the student says goodbye or wants to end the conversation.",
                         "parameters": {
                             "type": "object",
                             "properties": {},
+                            "required": []
+                        }
+                    },
+                    {
+                        "type": "function",
+                        "name": "enviar_feedback_conversacion",
+                        "description": "Devuelve un resumen de la conversación y feedback como tutor de inglés",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "resumen_conversacion": {
+                                    "type": "string",
+                                    "description": "Resumen conciso de los temas tratados en la conversación"
+                                },
+                                "feedback_tutor": {
+                                    "type": "string",
+                                    "description": "Comentario crítico o sugerencias para mejorar el inglés como tutor"
+                                }
+                            },
                             "required": []
                         }
                     }

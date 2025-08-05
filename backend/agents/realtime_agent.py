@@ -46,6 +46,9 @@ class RealtimeAgent:
         
         # Tasks for concurrent operations
         self.tasks = []
+        
+        # Conversation feedback storage
+        self.conversation_feedback = None
     
     async def start(self):
         """Start the realtime conversation agent"""
@@ -282,7 +285,15 @@ class RealtimeAgent:
         if not self.session_state:
             return {"error": "No active session"}
         
-        return self.conversation_service.get_conversation_summary(self.session_state)
+        # Get the base conversation summary
+        session_info = self.conversation_service.get_conversation_summary(self.session_state)
+        
+        # Add conversation feedback if available
+        if self.conversation_feedback:
+            session_info["conversation_feedback"] = self.conversation_feedback
+            logger.info("✅ Including conversation feedback in session info")
+            
+        return session_info
     
     def is_active(self) -> bool:
         """Check if the conversation is active"""

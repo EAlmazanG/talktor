@@ -80,6 +80,28 @@ class ConversationService:
                     asyncio.create_task(session_state.agent._handle_conversation_termination())
                 
                 return result, call_id
+            elif name == "enviar_feedback_conversacion":
+                logger.info("📝 Agent requested to send conversation feedback")
+                # Get the feedback data from the function call
+                resumen = function_call_args.get("resumen_conversacion", "")
+                feedback = function_call_args.get("feedback_tutor", "")
+                
+                # Store the feedback in the session state for later use
+                if hasattr(session_state, "agent") and session_state.agent:
+                    # Store the feedback in the agent for later retrieval
+                    session_state.agent.conversation_feedback = {
+                        "resumen": resumen,
+                        "feedback": feedback,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    logger.info("✅ Stored conversation feedback in session state")
+                
+                result = json.dumps({
+                    "status": "success",
+                    "message": "Feedback received and stored"
+                })
+                
+                return result, call_id
             else:
                 logger.warning(f"Unknown function call: {name}")
                 error_result = json.dumps({
