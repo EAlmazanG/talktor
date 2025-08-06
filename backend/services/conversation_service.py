@@ -137,6 +137,23 @@ class ConversationService:
                         logger.info(f"📊 Overall score: {overall_score}/10.0")
                         logger.info(f"📊 Pillar scores: {', '.join([f'{p}: {s:.1f}' for p, s in pillar_scores.items()])}")
                         
+                        # Save feedback to database
+                        try:
+                            from services.persistence_service import persistence_service
+                            await persistence_service.save_complete_conversation(
+                                session_id=session_state.session_id,
+                                user_id=session_state.user_id,
+                                conversation_json={"messages": []},  # Empty conversation data
+                                feedback_data=session_state.agent.conversation_feedback,
+                                duration_seconds=0,  # We don't have duration here
+                                agent_type="realtime",
+                                mode="free_topic"
+                            )
+                            logger.info(colorize("💾 Successfully saved feedback to database", Colors.BRIGHT_GREEN))
+                        except Exception as db_error:
+                            logger.error(f"❌ Error saving feedback to database: {str(db_error)}")
+                            # Don't fail the whole process if DB save fails
+                        
                     except Exception as store_error:
                         logger.error(colorize(f"❌ Error storing structured feedback in agent: {str(store_error)}", Colors.BRIGHT_RED))
                         import traceback
