@@ -205,12 +205,14 @@ class RealtimeAgent:
         if transcript and transcript.strip():
             self.conversation_service.update_conversation_context(self.session_state, "user", transcript)
             
-            # Check for termination commands ONLY if it's a clear, short command
-            # Only check for termination if it's a very short phrase (1-3 words)
+            # Check for termination commands and explicitly request feedback
             words = transcript.strip().split()
             if len(words) <= 3 and self._is_termination_command(transcript):
                 logger.info(colorize(f"🛑 Termination command detected: {transcript}", Colors.BRIGHT_YELLOW))
-                await self._handle_conversation_termination()
+                logger.info(colorize("📤 Requesting feedback from OpenAI before ending conversation...", Colors.BRIGHT_GREEN))
+                
+                # Send explicit request for feedback to OpenAI
+                await self._request_conversation_feedback()
                 return
         else:
             logger.warning("Received empty or invalid transcript")
@@ -353,6 +355,42 @@ class RealtimeAgent:
                     return True
         
         return False
+    
+    async def _request_conversation_feedback(self):
+        """Explicitly request conversation feedback from OpenAI"""
+        try:
+            logger.info(colorize("📝 Sending explicit feedback request to OpenAI...", Colors.BRIGHT_GREEN))
+            
+            # Create a message asking OpenAI to provide feedback
+            feedback_request = {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{
+                        "type": "input_text",
+                        "text": "The student has indicated they want to end the conversation. Please provide comprehensive feedback on our conversation using the enviar_feedback_conversacion function, then call end_conversation."
+                    }]
+                }
+            }
+            
+            # Send the feedback request
+            await self.openai_service.send_message(self.session_state, feedback_request)
+            
+            # Trigger a response from OpenAI
+            response_request = {
+                "type": "response.create"
+            }
+            await self.openai_service.send_message(self.session_state, response_request)
+            
+            logger.info(colorize("✅ Feedback request sent to OpenAI", Colors.BRIGHT_GREEN))
+            
+        except Exception as e:
+            logger.error(f"❌ Error requesting feedback: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Fallback to direct termination if feedback request fails
+            await self._handle_conversation_termination()
     
     async def _handle_conversation_termination(self):
         """Handle conversation termination with mandatory feedback generation
