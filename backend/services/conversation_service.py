@@ -83,37 +83,62 @@ class ConversationService:
                 return result, call_id
             elif name == "enviar_feedback_conversacion":
                 logger.info(colorize("📝 Agent requested to send conversation feedback", Colors.BRIGHT_GREEN))
-                # Get the feedback data from the function call
-                resumen = function_call_args.get("resumen_conversacion", "")
-                feedback = function_call_args.get("feedback_tutor", "")
                 
                 # Log the complete function call arguments for debugging
-                logger.info(f"📥 Received function call arguments: {json.dumps(function_call_args, indent=2)[:500]}...")
+                logger.info(f"📥 Received structured feedback: {json.dumps(function_call_args, indent=2)[:800]}...")
                 
-                # Log the received feedback data for debugging
-                logger.info(f"📋 Received feedback summary ({len(resumen)} chars): {resumen[:100]}...")
-                logger.info(f"💬 Received feedback content ({len(feedback)} chars): {feedback[:100]}...")
+                # Extract structured feedback data
+                overall_score = function_call_args.get("overall_score", 0.0)
+                summary = function_call_args.get("summary", "")
+                conclusion = function_call_args.get("conclusion", "")
                 
-                # Validate feedback data
-                if not resumen or len(resumen) < 10:
-                    logger.warning(colorize("⚠️ Received empty or very short conversation summary", Colors.BRIGHT_YELLOW))
-                if not feedback or len(feedback) < 10:
-                    logger.warning(colorize("⚠️ Received empty or very short feedback content", Colors.BRIGHT_YELLOW))
+                # Log key metrics
+                logger.info(f"📊 Overall score: {overall_score}/10.0")
+                logger.info(f"📋 Summary ({len(summary)} chars): {summary[:100]}...")
+                logger.info(f"🎯 Conclusion ({len(conclusion)} chars): {conclusion[:100]}...")
                 
-                # Store the feedback in the session state for later use
+                # Log pillar scores
+                pillars = ["pronunciation", "fluency", "grammar", "expressions", "vocabulary", "comprehension"]
+                pillar_scores = {}
+                for pillar in pillars:
+                    score = function_call_args.get(f"{pillar}_score", 0.0)
+                    pillar_scores[pillar] = score
+                    logger.info(f"📈 {pillar.capitalize()}: {score}/10.0")
+                
+                # Validate structured feedback data
+                if overall_score < 1.0 or overall_score > 10.0:
+                    logger.warning(colorize(f"⚠️ Invalid overall score: {overall_score}", Colors.BRIGHT_YELLOW))
+                if not summary or len(summary) < 50:
+                    logger.warning(colorize("⚠️ Received empty or very short summary", Colors.BRIGHT_YELLOW))
+                if not conclusion or len(conclusion) < 50:
+                    logger.warning(colorize("⚠️ Received empty or very short conclusion", Colors.BRIGHT_YELLOW))
+                
+                # Store the structured feedback in the session state for later use
                 if hasattr(session_state, "agent") and session_state.agent:
-                    # Store the feedback in the agent for later retrieval
                     try:
+                        # Store the complete structured feedback
                         session_state.agent.conversation_feedback = {
-                            "resumen": resumen,
-                            "feedback": feedback,
-                            "timestamp": datetime.now().isoformat()
+                            "overall_score": overall_score,
+                            "summary": summary,
+                            "conclusion": conclusion,
+                            "pillars": {
+                                pillar: {
+                                    "score": function_call_args.get(f"{pillar}_score", 0.0),
+                                    "feedback": function_call_args.get(f"{pillar}_feedback", ""),
+                                    "examples": function_call_args.get(f"{pillar}_examples", []),
+                                    "suggestions": function_call_args.get(f"{pillar}_suggestions", [])
+                                } for pillar in pillars
+                            },
+                            "timestamp": datetime.now().isoformat(),
+                            "format_version": "structured_v1"
                         }
-                        logger.info(colorize("✅ Successfully stored conversation feedback in agent", Colors.BRIGHT_GREEN))
-                        logger.info(f"📊 Feedback summary length: {len(resumen)} chars")
-                        logger.info(f"📊 Feedback content length: {len(feedback)} chars")
+                        
+                        logger.info(colorize("✅ Successfully stored structured conversation feedback in agent", Colors.BRIGHT_GREEN))
+                        logger.info(f"📊 Overall score: {overall_score}/10.0")
+                        logger.info(f"📊 Pillar scores: {', '.join([f'{p}: {s:.1f}' for p, s in pillar_scores.items()])}")
+                        
                     except Exception as store_error:
-                        logger.error(colorize(f"❌ Error storing feedback in agent: {str(store_error)}", Colors.BRIGHT_RED))
+                        logger.error(colorize(f"❌ Error storing structured feedback in agent: {str(store_error)}", Colors.BRIGHT_RED))
                         import traceback
                         logger.error(traceback.format_exc())
                 else:

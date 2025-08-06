@@ -103,16 +103,150 @@ Remember: Your primary value is in providing detailed, helpful feedback at the e
                         "parameters": {
                             "type": "object",
                             "properties": {
-                                "resumen_conversacion": {
-                                    "type": "string",
-                                    "description": "Detailed summary of the topics discussed and key points from the conversation (minimum 100 characters)"
+                                "overall_score": {
+                                    "type": "number",
+                                    "description": "Overall English proficiency score from 1.0 to 10.0 based on the conversation",
+                                    "minimum": 1.0,
+                                    "maximum": 10.0
                                 },
-                                "feedback_tutor": {
+                                "summary": {
                                     "type": "string",
-                                    "description": "Comprehensive feedback on the student's English skills including: pronunciation, grammar, vocabulary usage, fluency, comprehension, and specific suggestions for improvement. Include both strengths and weaknesses (minimum 200 characters)."
+                                    "description": "Brief summary of the conversation topics and key points discussed (minimum 100 characters)"
+                                },
+                                "conclusion": {
+                                    "type": "string",
+                                    "description": "General conclusion about the student's English level and main areas to focus on (minimum 100 characters)"
+                                },
+                                "pronunciation_score": {
+                                    "type": "number",
+                                    "description": "Pronunciation quality score from 1.0 to 10.0",
+                                    "minimum": 1.0,
+                                    "maximum": 10.0
+                                },
+                                "pronunciation_feedback": {
+                                    "type": "string",
+                                    "description": "Detailed feedback on pronunciation quality"
+                                },
+                                "pronunciation_examples": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific examples of pronunciation issues or strengths from the conversation"
+                                },
+                                "pronunciation_suggestions": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific suggestions to improve pronunciation"
+                                },
+                                "fluency_score": {
+                                    "type": "number",
+                                    "description": "Speaking fluency score from 1.0 to 10.0",
+                                    "minimum": 1.0,
+                                    "maximum": 10.0
+                                },
+                                "fluency_feedback": {
+                                    "type": "string",
+                                    "description": "Detailed feedback on speaking fluency and flow"
+                                },
+                                "fluency_examples": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific examples of fluency issues or strengths from the conversation"
+                                },
+                                "fluency_suggestions": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific suggestions to improve fluency"
+                                },
+                                "grammar_score": {
+                                    "type": "number",
+                                    "description": "Grammar accuracy score from 1.0 to 10.0",
+                                    "minimum": 1.0,
+                                    "maximum": 10.0
+                                },
+                                "grammar_feedback": {
+                                    "type": "string",
+                                    "description": "Detailed feedback on grammar usage and accuracy"
+                                },
+                                "grammar_examples": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific examples of grammar issues or correct usage from the conversation"
+                                },
+                                "grammar_suggestions": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific suggestions to improve grammar"
+                                },
+                                "expressions_score": {
+                                    "type": "number",
+                                    "description": "Use of expressions and idioms score from 1.0 to 10.0",
+                                    "minimum": 1.0,
+                                    "maximum": 10.0
+                                },
+                                "expressions_feedback": {
+                                    "type": "string",
+                                    "description": "Detailed feedback on use of expressions and natural language"
+                                },
+                                "expressions_examples": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific examples of expressions used or missed opportunities from the conversation"
+                                },
+                                "expressions_suggestions": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific suggestions for better use of expressions"
+                                },
+                                "vocabulary_score": {
+                                    "type": "number",
+                                    "description": "Vocabulary range and accuracy score from 1.0 to 10.0",
+                                    "minimum": 1.0,
+                                    "maximum": 10.0
+                                },
+                                "vocabulary_feedback": {
+                                    "type": "string",
+                                    "description": "Detailed feedback on vocabulary usage and range"
+                                },
+                                "vocabulary_examples": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific examples of vocabulary usage from the conversation"
+                                },
+                                "vocabulary_suggestions": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific suggestions to expand vocabulary"
+                                },
+                                "comprehension_score": {
+                                    "type": "number",
+                                    "description": "Listening comprehension score from 1.0 to 10.0",
+                                    "minimum": 1.0,
+                                    "maximum": 10.0
+                                },
+                                "comprehension_feedback": {
+                                    "type": "string",
+                                    "description": "Detailed feedback on listening comprehension abilities"
+                                },
+                                "comprehension_examples": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific examples of comprehension from the conversation"
+                                },
+                                "comprehension_suggestions": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Specific suggestions to improve comprehension"
                                 }
                             },
-                            "required": ["resumen_conversacion", "feedback_tutor"]
+                            "required": [
+                                "overall_score", "summary", "conclusion",
+                                "pronunciation_score", "pronunciation_feedback", "pronunciation_examples", "pronunciation_suggestions",
+                                "fluency_score", "fluency_feedback", "fluency_examples", "fluency_suggestions",
+                                "grammar_score", "grammar_feedback", "grammar_examples", "grammar_suggestions",
+                                "expressions_score", "expressions_feedback", "expressions_examples", "expressions_suggestions",
+                                "vocabulary_score", "vocabulary_feedback", "vocabulary_examples", "vocabulary_suggestions",
+                                "comprehension_score", "comprehension_feedback", "comprehension_examples", "comprehension_suggestions"
+                            ]
                         }
                     }
                 ]
