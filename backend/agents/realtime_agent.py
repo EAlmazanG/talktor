@@ -392,6 +392,27 @@ class RealtimeAgent:
             # Fallback to direct termination if feedback request fails
             await self._handle_conversation_termination()
     
+    async def _schedule_auto_termination_after_feedback(self):
+        """Schedule automatic termination 3 seconds after feedback is received"""
+        try:
+            logger.info(colorize("⏰ Starting 3-second countdown for auto-termination after feedback...", Colors.BRIGHT_YELLOW))
+            
+            # Wait 3 seconds
+            await asyncio.sleep(3)
+            
+            # Check if conversation is still active (OpenAI might have called end_conversation)
+            if self.session_state and self.session_state.is_active:
+                logger.info(colorize("🔴 OpenAI did not call end_conversation - forcing termination after feedback", Colors.BRIGHT_RED))
+                await self.stop_conversation()
+            else:
+                logger.info(colorize("✅ Conversation already ended by OpenAI - no auto-termination needed", Colors.BRIGHT_GREEN))
+                
+        except Exception as e:
+            logger.error(f"❌ Error in auto-termination after feedback: {str(e)}")
+            # Force termination even if there's an error
+            if self.session_state and self.session_state.is_active:
+                await self.stop_conversation()
+    
     async def _handle_conversation_termination(self):
         """Handle conversation termination with mandatory feedback generation
         """

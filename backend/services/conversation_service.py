@@ -69,7 +69,7 @@ class ConversationService:
                 result = self.process_english_conversation(message, session_state)
                 return result, call_id
             elif name == "end_conversation":
-                logger.info("🔄 Agent requested to end the conversation")
+                logger.info(colorize("✅ OpenAI called end_conversation - terminating session", Colors.BRIGHT_GREEN))
                 # Trigger conversation termination in the RealtimeAgent
                 result = json.dumps({
                     "status": "success",
@@ -78,7 +78,7 @@ class ConversationService:
                 
                 # Schedule the conversation termination to happen after we return
                 if hasattr(session_state, "agent") and session_state.agent:
-                    asyncio.create_task(session_state.agent._handle_conversation_termination())
+                    asyncio.create_task(session_state.agent.stop_conversation())
                 
                 return result, call_id
             elif name == "enviar_feedback_conversacion":
@@ -144,12 +144,15 @@ class ConversationService:
                 else:
                     logger.error(colorize("❌ Could not store feedback - agent not available in session state", Colors.BRIGHT_RED))
                 
-                result = json.dumps({
-                    "status": "success",
-                    "message": "Feedback received and stored"
-                })
+                # Schedule automatic conversation termination after 3 seconds if OpenAI doesn't call end_conversation
+                if hasattr(session_state, "agent") and session_state.agent:
+                    logger.info(colorize("⏰ Scheduling automatic conversation termination in 3 seconds if not ended by OpenAI...", Colors.BRIGHT_YELLOW))
+                    asyncio.create_task(session_state.agent._schedule_auto_termination_after_feedback())
                 
-                return result, call_id
+                return json.dumps({
+                    "status": "success",
+                    "message": "Feedback sent successfully"
+                }), call_id
             else:
                 logger.warning(f"Unknown function call: {name}")
                 error_result = json.dumps({
