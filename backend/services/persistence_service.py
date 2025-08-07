@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List, Union
 import logging
 from contextlib import contextmanager
 
+from sqlalchemy.orm import Session
 from core.logging import get_logger
 from core.colors import colorize, Colors
 from db.database import get_db_session, init_database
@@ -65,34 +66,39 @@ class PersistenceService:
     # SESSION OPERATIONS
     # ========================================
     
-    async def create_session(
+    def create_session(
         self,
-        session_id: str,
+        db: Session,
         user_id: str,
         agent_type: Union[AgentType, str] = AgentType.REALTIME,
         mode: Union[ConversationMode, str] = ConversationMode.FREE_TOPIC,
-        topic: Optional[str] = None
+        topic: Optional[str] = None,
+        session_id: Optional[str] = None
     ) -> SessionModel:
         """Create a new conversation session"""
         try:
+            # Generate session ID if not provided
+            if not session_id:
+                import uuid
+                session_id = str(uuid.uuid4())
+            
             # Convert string enums if needed
             if isinstance(agent_type, str):
                 agent_type = AgentType(agent_type.lower())
             if isinstance(mode, str):
                 mode = ConversationMode(mode.lower())
             
-            with self.get_db_transaction() as db:
-                session = self.session_crud.create_session(
-                    db=db,
-                    session_id=session_id,
-                    user_id=user_id,
-                    agent_type=agent_type,
-                    mode=mode,
-                    topic=topic
-                )
-                
-                logger.info(f"✅ Created session: {session_id}")
-                return session
+            session = self.session_crud.create_session(
+                db=db,
+                session_id=session_id,
+                user_id=user_id,
+                agent_type=agent_type,
+                mode=mode,
+                topic=topic
+            )
+            
+            logger.info(f"✅ Created session: {session_id}")
+            return session
                 
         except Exception as e:
             logger.error(f"❌ Error creating session {session_id}: {e}")
@@ -470,205 +476,166 @@ class PersistenceService:
     # ANALYTICS & REPORTING
     # ========================================
     
-    async def get_user_progress(self, user_id: str) -> Dict[str, Any]:
+    def get_user_progress(self, db: Session, user_id: str) -> Dict[str, Any]:
         """Get comprehensive user progress analytics"""
         try:
-            with self.get_db_transaction() as db:
-                # Get user sessions
-                sessions = self.session_crud.get_user_sessions(db, user_id)
-                
-                if not sessions:
-                    return {
-                        "user_id": user_id,
-                        "total_sessions": 0,
-                        "total_duration": 0,
-                        "average_scores": {},
-                        "recent_activity": []
-                    }
-                
-                # Calculate statistics
-                total_sessions = len(sessions)
-                total_duration = sum(s.duration_seconds or 0 for s in sessions)
-                completed_sessions = [s for s in sessions if s.status == "completed"]
-                
-                # Get all feedback for user sessions
-                all_feedback = []
-                for session in sessions:
-                    feedback = self.feedback_crud.get_session_feedback(db, session.id)
-                    if feedback:  # feedback is now a single object, not a list
-                        all_feedback.append(feedback)
-                
-                # Calculate average scores by pillar from the new feedback format
-                pillar_scores = {
-                    'pronunciation': [],
-                    'fluency': [],
-                    'grammar': [],
-                    'expressions': [],
-                    'vocabulary': [],
-                    'comprehension': []
-                }
-                
-                for feedback in all_feedback:
-                    # Extract scores from the new feedback format
-                    if feedback.pronunciation_score is not None:
-                        pillar_scores['pronunciation'].append(feedback.pronunciation_score)
-                    if feedback.fluency_score is not None:
-                        pillar_scores['fluency'].append(feedback.fluency_score)
-                    if feedback.grammar_score is not None:
-                        pillar_scores['grammar'].append(feedback.grammar_score)
-                    if feedback.expressions_score is not None:
-                        pillar_scores['expressions'].append(feedback.expressions_score)
-                    if feedback.vocabulary_score is not None:
-                        pillar_scores['vocabulary'].append(feedback.vocabulary_score)
-                    if feedback.comprehension_score is not None:
-                        pillar_scores['comprehension'].append(feedback.comprehension_score)
-                
-                # Calculate averages only for pillars that have scores
-                average_scores = {
-                    pillar: sum(scores) / len(scores)
-                    for pillar, scores in pillar_scores.items()
-                    if len(scores) > 0
-                }
-                
-                # Recent activity (last 5 sessions)
-                recent_sessions = sorted(sessions, key=lambda s: s.created_at, reverse=True)[:5]
-                recent_activity = [
-                    {
-                        "session_id": s.session_id,
-                        "date": s.created_at,
-                        "duration": s.duration_seconds,
-                        "status": s.status
-                    }
-                    for s in recent_sessions
-                ]
-                
+            # Get user sessions
+            sessions = self.session_crud.get_user_sessions(db, user_id)
+            
+            if not sessions:
                 return {
                     "user_id": user_id,
-                    "total_sessions": total_sessions,
-                    "completed_sessions": len(completed_sessions),
-                    "total_duration": total_duration,
-                    "average_duration": total_duration / total_sessions if total_sessions > 0 else 0,
-                    "average_scores": average_scores,
-                    "recent_activity": recent_activity,
-                    "last_session": recent_sessions[0].created_at if recent_sessions else None
+                    "total_sessions": 0,
+                    "total_duration": 0,
+                    "average_scores": {},
+                    "recent_activity": []
                 }
+            
+            # Calculate statistics
+            total_sessions = len(sessions)
+            total_duration = sum(s.duration_seconds or 0 for s in sessions)
+            completed_sessions = [s for s in sessions if s.status == "completed"]
+            
+            # Get all feedback for user sessions
+            all_feedback = []
+            for session in sessions:
+                feedback = self.feedback_crud.get_session_feedback(db, session.id)
+                if feedback:  # feedback is now a single object, not a list
+                    all_feedback.append(feedback)
+            
+            # Calculate average scores by pillar from the new feedback format
+            pillar_scores = {
+                'pronunciation': [],
+                'fluency': [],
+                'grammar': [],
+                'expressions': [],
+                'vocabulary': [],
+                'comprehension': []
+            }
+            
+            for feedback in all_feedback:
+                # Extract scores from the new feedback format
+                if feedback.pronunciation_score is not None:
+                    pillar_scores['pronunciation'].append(feedback.pronunciation_score)
+                if feedback.fluency_score is not None:
+                    pillar_scores['fluency'].append(feedback.fluency_score)
+                if feedback.grammar_score is not None:
+                    pillar_scores['grammar'].append(feedback.grammar_score)
+                if feedback.expressions_score is not None:
+                    pillar_scores['expressions'].append(feedback.expressions_score)
+                if feedback.vocabulary_score is not None:
+                    pillar_scores['vocabulary'].append(feedback.vocabulary_score)
+                if feedback.comprehension_score is not None:
+                    pillar_scores['comprehension'].append(feedback.comprehension_score)
+            
+            # Calculate averages only for pillars that have scores
+            average_scores = {
+                pillar: sum(scores) / len(scores)
+                for pillar, scores in pillar_scores.items()
+                if len(scores) > 0
+            }
+            
+            # Recent activity (last 5 sessions)
+            recent_sessions = sorted(sessions, key=lambda s: s.created_at, reverse=True)[:5]
+            recent_activity = [
+                {
+                    "session_id": s.session_id,
+                    "date": s.created_at,
+                    "duration": s.duration_seconds,
+                    "status": s.status
+                }
+                for s in recent_sessions
+            ]
+            
+            return {
+                "user_id": user_id,
+                "total_sessions": total_sessions,
+                "completed_sessions": len(completed_sessions),
+                "total_duration": total_duration,
+                "average_duration": total_duration / total_sessions if total_sessions > 0 else 0,
+                "pillar_averages": average_scores,
+                "recent_activity": recent_activity,
+                "latest_session_date": recent_sessions[0].created_at if recent_sessions else None
+            }
                 
         except Exception as e:
             logger.error(f"❌ Error getting user progress for {user_id}: {e}")
             raise
     
-    async def get_session_summary(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def get_session_summary(self, db: Session, session_id: str) -> Optional[Dict[str, Any]]:
         """Get complete session summary with all related data"""
         try:
-            with self.get_db_transaction() as db:
-                # Get session
-                session = self.session_crud.get_session_by_id(db, session_id)
-                if not session:
-                    return None
-                
-                # Get transcripts
-                transcripts = self.transcript_crud.get_session_transcripts(db, session.id)
-                
-                # Get feedback
-                feedback = self.feedback_crud.get_session_feedback(db, session.id)
-                
-                # Build conversation text
-                conversation_text = "\n".join([
-                    f"{t.speaker.value.upper()}: {t.content}"
-                    for t in transcripts
-                ])
-                
-                # Organize feedback by pillar (new format)
-                feedback_by_pillar = {}
-                overall_score = None
-                
-                if feedback:
-                    # Extract pillar data from the comprehensive feedback
-                    pillars = ['pronunciation', 'fluency', 'grammar', 'expressions', 'vocabulary', 'comprehension']
-                    for pillar in pillars:
-                        score = getattr(feedback, f'{pillar}_score', None)
-                        summary = getattr(feedback, f'{pillar}_summary', None)
-                        errors_json = getattr(feedback, f'{pillar}_errors', None)
-                        suggestions_json = getattr(feedback, f'{pillar}_suggestions', None)
-                        
-                        if score is not None:
-                            feedback_by_pillar[pillar] = {
-                                "score": score,
-                                "summary": summary,
-                                "errors": json.loads(errors_json) if errors_json else [],
-                                "suggestions": json.loads(suggestions_json) if suggestions_json else []
-                            }
-                    
-                    overall_score = feedback.overall_score
-                
-                return {
-                    "session": {
-                        "id": session.session_id,
-                        "user_id": session.user_id,
-                        "agent_type": session.agent_type.value,
-                        "mode": session.mode.value,
-                        "topic": session.topic,
-                        "status": session.status,
-                        "duration_seconds": session.duration_seconds,
-                        "token_count": session.token_count,
-                        "estimated_cost": session.estimated_cost,
-                        "created_at": session.created_at,
-                        "ended_at": session.ended_at,
-                        "notes": session.notes
-                    },
-                    "conversation": {
-                        "message_count": len(transcripts),
-                        "conversation_text": conversation_text,
-                        "messages": [
-                            {
-                                "speaker": t.speaker.value,
-                                "content": t.content,
-                                "sequence": t.sequence_number,
-                                "timestamp": t.timestamp,
-                                "confidence": t.confidence_score,
-                                "duration": t.audio_duration
-                            }
-                            for t in transcripts
-                        ]
-                    },
-                    "feedback": {
-                        "has_feedback": feedback is not None,
-                        "overall_score": overall_score,
-                        "pillar_count": len(feedback_by_pillar),
-                        "pillars": feedback_by_pillar,
-                        "general_feedback": feedback.general_feedback if feedback else None,
-                        "general_errors": json.loads(feedback.general_errors) if feedback and feedback.general_errors else [],
-                        "general_suggestions": json.loads(feedback.general_suggestions) if feedback and feedback.general_suggestions else []
-                    }
-                }
+            # Get session
+            session = self.session_crud.get_session_by_id(db, session_id)
+            if not session:
+                return None
+            
+            # Get transcripts
+            transcripts = self.transcript_crud.get_session_transcripts(db, session.id)
+            
+            # Get feedback
+            feedback = self.feedback_crud.get_session_feedback(db, session.id)
+            
+            # Build conversation text
+            conversation_text = "\n".join([
+                f"{t.speaker.value.upper()}: {t.content}"
+                for t in transcripts
+            ])
+            
+            # Create simplified session summary for API
+            return {
+                "session": {
+                    "session_id": session.session_id,
+                    "user_id": session.user_id,
+                    "agent_type": session.agent_type.value,
+                    "mode": session.mode.value,
+                    "topic": session.topic,
+                    "status": session.status,
+                    "duration_seconds": session.duration_seconds,
+                    "token_count": session.token_count,
+                    "estimated_cost": session.estimated_cost,
+                    "started_at": session.created_at,
+                    "ended_at": session.ended_at,
+                    "notes": session.notes
+                },
+                "message_count": len(transcripts),
+                "has_feedback": feedback is not None,
+                "feedback_score": feedback.overall_score if feedback else None
+            }
                 
         except Exception as e:
             logger.error(f"❌ Error getting session summary for {session_id}: {e}")
             raise
     
     # ========================================
+    # HELPER METHODS
+    # ========================================
+    
+    def _get_session_db_id(self, db: Session, session_id: str) -> Optional[int]:
+        """Get database ID from session_id string"""
+        session = self.session_crud.get_session_by_id(db, session_id)
+        return session.id if session else None
+    
+    # ========================================
     # UTILITY METHODS
     # ========================================
     
-    async def health_check(self) -> Dict[str, Any]:
+    def health_check(self, db: Session) -> Dict[str, Any]:
         """Check database connectivity and basic stats"""
         try:
-            with self.get_db_transaction() as db:
-                # Count records in main tables
-                session_count = db.query(SessionModel).count()
-                transcript_count = db.query(Transcript).count()
-                feedback_count = db.query(Feedback).count()
-                
-                return {
-                    "status": "healthy",
-                    "database": "connected",
-                    "tables": {
-                        "sessions": session_count,
-                        "transcripts": transcript_count,
-                        "feedback": feedback_count
-                    },
-                    "timestamp": datetime.now(timezone.utc)
-                }
+            # Count records in main tables
+            session_count = db.query(SessionModel).count()
+            transcript_count = db.query(Transcript).count()
+            feedback_count = db.query(Feedback).count()
+            
+            return {
+                "status": "healthy",
+                "database": "connected",
+                "total_sessions": session_count,
+                "total_transcripts": transcript_count,
+                "total_feedback": feedback_count,
+                "timestamp": datetime.now(timezone.utc)
+            }
         except Exception as e:
             logger.error(f"❌ Database health check failed: {e}")
             return {

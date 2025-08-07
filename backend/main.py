@@ -1,94 +1,104 @@
-from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy import create_engine, Column, Integer, String, MetaData, Table, select
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import os
-from pydantic import BaseModel
-from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-# Load environment variables from .env file
-load_dotenv()
+# Import API routes
+from api.v1 import conversations, feedback, sessions, users
+from api.middleware import setup_middleware
+from schemas.common import HealthCheckResponse
+from core.logging import get_logger
+from db.database import get_db_session
+from services.persistence_service import persistence_service
 
-# Database configuration
-# Get database credentials from environment variables
-POSTGRES_USER = os.getenv("POSTGRES_USER")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-POSTGRES_DB = os.getenv("POSTGRES_DB")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "db")  # Default to 'db' for Docker environment
+# Initialize logger
+logger = get_logger(__name__)
 
-# Create database connection URL
-DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:5432/{POSTGRES_DB}"
-
-# Create SQLAlchemy engine
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# Define database model
-class TestTable(Base):
-    """Test table model for demonstration purposes"""
-    __tablename__ = "test_table"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-
-# Create tables automatically if they don't exist
-Base.metadata.create_all(bind=engine)
-
-# Pydantic model for API request/response
-class TestItem(BaseModel):
-    """Test item schema for API operations"""
-    name: str
-    
-    class Config:
-        orm_mode = True
-
-# Database session dependency
-def get_db():
-    """Dependency to get a database session"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+# Create FastAPI application
 app = FastAPI(
     title="Talktor API",
-    description="API for the Talktor project",
-    version="0.1.0"
+    description="REST API for the Talktor English conversation learning platform",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
-@app.get("/")
-def read_root():
-    """Root endpoint returning a welcome message"""
-    return {"message": "Welcome to Talktor API"}
+# Setup middleware
+setup_middleware(app)
 
-@app.get("/health")
-def health_check():
+# Include API v1 routes
+app.include_router(conversations.router, prefix="/api/v1")
+app.include_router(feedback.router, prefix="/api/v1")
+app.include_router(sessions.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
+
+
+@app.get("/", tags=["root"])
+async def read_root():
+    """Root endpoint returning API information"""
+    return {
+        "message": "Welcome to Talktor API",
+        "version": "1.0.0",
+        "description": "REST API for English conversation learning",
+        "docs": "/docs",
+        "redoc": "/redoc"
+    }
+
+
+@app.get("/health", response_model=HealthCheckResponse, tags=["health"])
+async def health_check():
     """Health check endpoint for monitoring"""
-    return {"status": "ok"}
-
-@app.get("/db-test")
-def db_test(db = Depends(get_db)):
-    """Test database connection endpoint"""
     try:
-        # Try to execute a simple query
-        result = db.execute(select(1)).scalar()
-        return {"status": "ok", "connection": "successful", "test_query": result}
+        # Test database connection
+        db = get_db_session()
+        health_info = persistence_service.health_check(db)
+        db.close()
+        
+        return HealthCheckResponse(
+            status="healthy",
+            database="connected",
+            services={
+                "api": "healthy",
+                "database": "connected",
+                "persistence": "healthy",
+                "total_sessions": str(health_info.get("total_sessions", 0))
+            }
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database connection error: {str(e)}")
+        logger.error(f" Health check failed: {str(e)}")
+        return HealthCheckResponse(
+            status="unhealthy",
+            database="disconnected",
+            services={
+                "api": "unhealthy",
+                "database": "disconnected",
+                "error": str(e)
+            }
+        )
 
-@app.post("/items/", response_model=TestItem)
-def create_item(item: TestItem, db = Depends(get_db)):
-    """Create a new test item in the database"""
-    db_item = TestTable(name=item.name)
-    db.add(db_item)
-    db.commit()
-    db.refresh(db_item)
-    return db_item
 
-@app.get("/items/")
-def read_items(db = Depends(get_db)):
-    """Get all test items from the database"""
-    items = db.query(TestTable).all()
-    return items
+@app.get("/api/v1", tags=["api"])
+async def api_info():
+    """API v1 information endpoint"""
+    return {
+        "version": "v1",
+        "endpoints": {
+            "conversations": "/api/v1/conversations",
+            "feedback": "/api/v1/feedback",
+            "sessions": "/api/v1/sessions",
+            "users": "/api/v1/users"
+        },
+        "websocket": {
+            "realtime_conversation": "/api/v1/conversations/{session_id}/realtime"
+        }
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    logger.info(" Starting Talktor API server...")
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )

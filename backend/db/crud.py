@@ -96,6 +96,31 @@ class SessionCRUD:
             .offset(offset)
             .all()
         )
+    
+    @staticmethod
+    def count_user_sessions(db: Session, user_id: str) -> int:
+        """Count total sessions for a user"""
+        return (
+            db.query(SessionModel)
+            .filter(SessionModel.user_id == user_id)
+            .count()
+        )
+    
+    @staticmethod
+    def delete_session(db: Session, session_id: str) -> bool:
+        """Soft delete a session by marking it as deleted"""
+        try:
+            session = SessionCRUD.get_session_by_id(db, session_id)
+            if session:
+                session.status = "deleted"
+                db.commit()
+                logger.info(f"✅ Soft deleted session: {session_id}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"❌ Error deleting session {session_id}: {e}")
+            db.rollback()
+            raise
 
 
 class TranscriptCRUD:
