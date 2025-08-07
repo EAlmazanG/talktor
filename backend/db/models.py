@@ -125,6 +125,7 @@ class Feedback(Base):
     
     # General feedback
     general_feedback = Column(Text, nullable=True)         # Overall feedback summary
+    general_summary = Column(Text, nullable=True)          # Summary of conversation topics discussed
     general_errors = Column(JSON, nullable=True)           # General errors array
     general_suggestions = Column(JSON, nullable=True)      # General suggestions array
     overall_score = Column(Float, nullable=True)           # Overall score 0-10

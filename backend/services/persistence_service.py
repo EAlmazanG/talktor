@@ -371,48 +371,51 @@ class PersistenceService:
                     # Extract data from the structured format
                     pillars = feedback_data.get("pillars", {})
                     overall_score = feedback_data.get("overall_score")
-                    summary = feedback_data.get("summary", "")
-                    conclusion = feedback_data.get("conclusion", "")
+                    general_feedback = feedback_data.get("general_feedback", "")
+                    general_summary = feedback_data.get("general_summary", "")
+                    general_errors = feedback_data.get("general_errors", [])
+                    general_suggestions = feedback_data.get("general_suggestions", [])
                     
                     # Create single feedback record with structured data
                     feedback_item = self.feedback_crud.create_comprehensive_feedback(
                         db=db,
                         session_id=session.id,
-                        # General feedback (use summary and conclusion)
-                        general_feedback=f"{summary}\n\nConclusion: {conclusion}",
-                        general_errors=json.dumps([]),  # No general errors in current format
-                        general_suggestions=json.dumps([]),  # No general suggestions in current format
+                        # General feedback
+                        general_feedback=general_feedback,
+                        general_summary=general_summary,
+                        general_errors=general_errors,
+                        general_suggestions=general_suggestions,
                         overall_score=overall_score,
                         # Pronunciation
                         pronunciation_score=pillars.get("pronunciation", {}).get("score"),
-                        pronunciation_summary=pillars.get("pronunciation", {}).get("feedback"),
-                        pronunciation_errors=json.dumps(pillars.get("pronunciation", {}).get("examples", [])),
-                        pronunciation_suggestions=json.dumps(pillars.get("pronunciation", {}).get("suggestions", [])),
+                        pronunciation_summary=pillars.get("pronunciation", {}).get("summary"),
+                        pronunciation_errors=pillars.get("pronunciation", {}).get("errors", []),
+                        pronunciation_suggestions=pillars.get("pronunciation", {}).get("suggestions", []),
                         # Fluency
                         fluency_score=pillars.get("fluency", {}).get("score"),
-                        fluency_summary=pillars.get("fluency", {}).get("feedback"),
-                        fluency_errors=json.dumps(pillars.get("fluency", {}).get("examples", [])),
-                        fluency_suggestions=json.dumps(pillars.get("fluency", {}).get("suggestions", [])),
+                        fluency_summary=pillars.get("fluency", {}).get("summary"),
+                        fluency_errors=pillars.get("fluency", {}).get("errors", []),
+                        fluency_suggestions=pillars.get("fluency", {}).get("suggestions", []),
                         # Grammar
                         grammar_score=pillars.get("grammar", {}).get("score"),
-                        grammar_summary=pillars.get("grammar", {}).get("feedback"),
-                        grammar_errors=json.dumps(pillars.get("grammar", {}).get("examples", [])),
-                        grammar_suggestions=json.dumps(pillars.get("grammar", {}).get("suggestions", [])),
+                        grammar_summary=pillars.get("grammar", {}).get("summary"),
+                        grammar_errors=pillars.get("grammar", {}).get("errors", []),
+                        grammar_suggestions=pillars.get("grammar", {}).get("suggestions", []),
                         # Expressions
                         expressions_score=pillars.get("expressions", {}).get("score"),
-                        expressions_summary=pillars.get("expressions", {}).get("feedback"),
-                        expressions_errors=json.dumps(pillars.get("expressions", {}).get("examples", [])),
-                        expressions_suggestions=json.dumps(pillars.get("expressions", {}).get("suggestions", [])),
+                        expressions_summary=pillars.get("expressions", {}).get("summary"),
+                        expressions_errors=pillars.get("expressions", {}).get("errors", []),
+                        expressions_suggestions=pillars.get("expressions", {}).get("suggestions", []),
                         # Vocabulary
                         vocabulary_score=pillars.get("vocabulary", {}).get("score"),
-                        vocabulary_summary=pillars.get("vocabulary", {}).get("feedback"),
-                        vocabulary_errors=json.dumps(pillars.get("vocabulary", {}).get("examples", [])),
-                        vocabulary_suggestions=json.dumps(pillars.get("vocabulary", {}).get("suggestions", [])),
+                        vocabulary_summary=pillars.get("vocabulary", {}).get("summary"),
+                        vocabulary_errors=pillars.get("vocabulary", {}).get("errors", []),
+                        vocabulary_suggestions=pillars.get("vocabulary", {}).get("suggestions", []),
                         # Comprehension
                         comprehension_score=pillars.get("comprehension", {}).get("score"),
-                        comprehension_summary=pillars.get("comprehension", {}).get("feedback"),
-                        comprehension_errors=json.dumps(pillars.get("comprehension", {}).get("examples", [])),
-                        comprehension_suggestions=json.dumps(pillars.get("comprehension", {}).get("suggestions", [])),
+                        comprehension_summary=pillars.get("comprehension", {}).get("summary"),
+                        comprehension_errors=pillars.get("comprehension", {}).get("errors", []),
+                        comprehension_suggestions=pillars.get("comprehension", {}).get("suggestions", []),
                         # Metadata
                         generated_by="realtime_agent"
                     )

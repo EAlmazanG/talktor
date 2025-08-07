@@ -175,6 +175,7 @@ class FeedbackCRUD:
         session_id: int,
         # General feedback
         general_feedback: str = None,
+        general_summary: str = None,
         general_errors: str = None,
         general_suggestions: str = None,
         overall_score: float = None,
@@ -216,6 +217,7 @@ class FeedbackCRUD:
             session_id=session_id,
             # General feedback
             general_feedback=general_feedback,
+            general_summary=general_summary,
             general_errors=general_errors,
             general_suggestions=general_suggestions,
             overall_score=overall_score,

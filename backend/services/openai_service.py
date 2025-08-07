@@ -109,13 +109,23 @@ Remember: Your primary value is in providing detailed, helpful feedback at the e
                                     "minimum": 1.0,
                                     "maximum": 10.0
                                 },
-                                "summary": {
+                                "general_feedback": {
                                     "type": "string",
-                                    "description": "Brief summary of the conversation topics and key points discussed (minimum 100 characters)"
+                                    "description": "General feedback about the conversation and student's overall performance (minimum 100 characters)"
                                 },
-                                "conclusion": {
+                                "general_summary": {
                                     "type": "string",
-                                    "description": "General conclusion about the student's English level and main areas to focus on (minimum 100 characters)"
+                                    "description": "Brief summary of the conversation topics and key points that were discussed (minimum 50 characters)"
+                                },
+                                "general_errors": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "General errors or issues observed during the conversation"
+                                },
+                                "general_suggestions": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "General suggestions for overall improvement"
                                 },
                                 "pronunciation_score": {
                                     "type": "number",
@@ -123,14 +133,14 @@ Remember: Your primary value is in providing detailed, helpful feedback at the e
                                     "minimum": 1.0,
                                     "maximum": 10.0
                                 },
-                                "pronunciation_feedback": {
+                                "pronunciation_summary": {
                                     "type": "string",
-                                    "description": "Detailed feedback on pronunciation quality"
+                                    "description": "Summary of pronunciation performance and quality"
                                 },
-                                "pronunciation_examples": {
+                                "pronunciation_errors": {
                                     "type": "array",
                                     "items": {"type": "string"},
-                                    "description": "Specific examples of pronunciation issues or strengths from the conversation"
+                                    "description": "Specific pronunciation errors or issues from the conversation"
                                 },
                                 "pronunciation_suggestions": {
                                     "type": "array",
@@ -143,14 +153,14 @@ Remember: Your primary value is in providing detailed, helpful feedback at the e
                                     "minimum": 1.0,
                                     "maximum": 10.0
                                 },
-                                "fluency_feedback": {
+                                "fluency_summary": {
                                     "type": "string",
-                                    "description": "Detailed feedback on speaking fluency and flow"
+                                    "description": "Summary of speaking fluency and flow performance"
                                 },
-                                "fluency_examples": {
+                                "fluency_errors": {
                                     "type": "array",
                                     "items": {"type": "string"},
-                                    "description": "Specific examples of fluency issues or strengths from the conversation"
+                                    "description": "Specific fluency issues or hesitations from the conversation"
                                 },
                                 "fluency_suggestions": {
                                     "type": "array",
@@ -163,14 +173,14 @@ Remember: Your primary value is in providing detailed, helpful feedback at the e
                                     "minimum": 1.0,
                                     "maximum": 10.0
                                 },
-                                "grammar_feedback": {
+                                "grammar_summary": {
                                     "type": "string",
-                                    "description": "Detailed feedback on grammar usage and accuracy"
+                                    "description": "Summary of grammar usage and accuracy performance"
                                 },
-                                "grammar_examples": {
+                                "grammar_errors": {
                                     "type": "array",
                                     "items": {"type": "string"},
-                                    "description": "Specific examples of grammar issues or correct usage from the conversation"
+                                    "description": "Specific grammar errors or mistakes from the conversation"
                                 },
                                 "grammar_suggestions": {
                                     "type": "array",
@@ -183,14 +193,14 @@ Remember: Your primary value is in providing detailed, helpful feedback at the e
                                     "minimum": 1.0,
                                     "maximum": 10.0
                                 },
-                                "expressions_feedback": {
+                                "expressions_summary": {
                                     "type": "string",
-                                    "description": "Detailed feedback on use of expressions and natural language"
+                                    "description": "Summary of expressions and natural language usage"
                                 },
-                                "expressions_examples": {
+                                "expressions_errors": {
                                     "type": "array",
                                     "items": {"type": "string"},
-                                    "description": "Specific examples of expressions used or missed opportunities from the conversation"
+                                    "description": "Missed opportunities or errors in using expressions from the conversation"
                                 },
                                 "expressions_suggestions": {
                                     "type": "array",
@@ -203,14 +213,14 @@ Remember: Your primary value is in providing detailed, helpful feedback at the e
                                     "minimum": 1.0,
                                     "maximum": 10.0
                                 },
-                                "vocabulary_feedback": {
+                                "vocabulary_summary": {
                                     "type": "string",
-                                    "description": "Detailed feedback on vocabulary usage and range"
+                                    "description": "Summary of vocabulary usage and range performance"
                                 },
-                                "vocabulary_examples": {
+                                "vocabulary_errors": {
                                     "type": "array",
                                     "items": {"type": "string"},
-                                    "description": "Specific examples of vocabulary usage from the conversation"
+                                    "description": "Specific vocabulary errors or word choice issues from the conversation"
                                 },
                                 "vocabulary_suggestions": {
                                     "type": "array",
@@ -223,14 +233,14 @@ Remember: Your primary value is in providing detailed, helpful feedback at the e
                                     "minimum": 1.0,
                                     "maximum": 10.0
                                 },
-                                "comprehension_feedback": {
+                                "comprehension_summary": {
                                     "type": "string",
-                                    "description": "Detailed feedback on listening comprehension abilities"
+                                    "description": "Summary of listening comprehension abilities"
                                 },
-                                "comprehension_examples": {
+                                "comprehension_errors": {
                                     "type": "array",
                                     "items": {"type": "string"},
-                                    "description": "Specific examples of comprehension from the conversation"
+                                    "description": "Specific comprehension issues or misunderstandings from the conversation"
                                 },
                                 "comprehension_suggestions": {
                                     "type": "array",
@@ -239,13 +249,13 @@ Remember: Your primary value is in providing detailed, helpful feedback at the e
                                 }
                             },
                             "required": [
-                                "overall_score", "summary", "conclusion",
-                                "pronunciation_score", "pronunciation_feedback", "pronunciation_examples", "pronunciation_suggestions",
-                                "fluency_score", "fluency_feedback", "fluency_examples", "fluency_suggestions",
-                                "grammar_score", "grammar_feedback", "grammar_examples", "grammar_suggestions",
-                                "expressions_score", "expressions_feedback", "expressions_examples", "expressions_suggestions",
-                                "vocabulary_score", "vocabulary_feedback", "vocabulary_examples", "vocabulary_suggestions",
-                                "comprehension_score", "comprehension_feedback", "comprehension_examples", "comprehension_suggestions"
+                                "overall_score", "general_feedback", "general_summary", "general_errors", "general_suggestions",
+                                "pronunciation_score", "pronunciation_summary", "pronunciation_errors", "pronunciation_suggestions",
+                                "fluency_score", "fluency_summary", "fluency_errors", "fluency_suggestions",
+                                "grammar_score", "grammar_summary", "grammar_errors", "grammar_suggestions",
+                                "expressions_score", "expressions_summary", "expressions_errors", "expressions_suggestions",
+                                "vocabulary_score", "vocabulary_summary", "vocabulary_errors", "vocabulary_suggestions",
+                                "comprehension_score", "comprehension_summary", "comprehension_errors", "comprehension_suggestions"
                             ]
                         }
                     }
