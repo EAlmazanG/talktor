@@ -16,7 +16,6 @@ from schemas.conversation import (
     ConversationEndResponse, ConversationDetails, TranscriptResponse
 )
 from schemas.common import SuccessResponse, ErrorResponse
-from services.conversation_flow import ConversationFlow
 from services.persistence_service import PersistenceService
 from services.openai_service import OpenAIService
 from services.session_state import SessionState
