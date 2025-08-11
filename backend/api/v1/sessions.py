@@ -149,9 +149,9 @@ async def get_user_sessions(
             
             session_summaries.append(SessionSummary(
                 session=SessionResponse.from_orm(session),
-                message_count=session_summary.message_count if session_summary else 0,
-                has_feedback=session_summary.has_feedback if session_summary else False,
-                feedback_score=session_summary.feedback_score if session_summary else None
+                message_count=session_summary.get('message_count', 0) if session_summary else 0,
+                has_feedback=session_summary.get('has_feedback', False) if session_summary else False,
+                feedback_score=session_summary.get('feedback_score') if session_summary else None
             ))
         
         return SessionListResponse(
