@@ -289,12 +289,14 @@ async def show_database_stats():
     print("\n📊 Current Database Statistics:")
     
     try:
-        health = await persistence_service.health_check()
+        # Use a managed DB session for health check
+        with persistence_service.get_db_transaction() as db:
+            health = persistence_service.health_check(db)
         
         print(f"   🏥 Status: {health['status']}")
-        print(f"   📊 Sessions: {health['tables']['sessions']}")
-        print(f"   💬 Transcripts: {health['tables']['transcripts']}")
-        print(f"   📋 Feedback: {health['tables']['feedback']}")
+        print(f"   📊 Sessions: {health.get('total_sessions', 0)}")
+        print(f"   💬 Transcripts: {health.get('total_transcripts', 0)}")
+        print(f"   📋 Feedback: {health.get('total_feedback', 0)}")
         
     except Exception as e:
         print(f"   ❌ Error getting database stats: {e}")

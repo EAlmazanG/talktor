@@ -45,12 +45,15 @@ class ConversationFlow:
             self.session_id = session_id
             
             # Create database session record using persistence service
-            await self.persistence.create_session(
-                session_id=session_id,
-                user_id=self.user_id,
-                agent_type=AgentType.REALTIME,
-                mode=ConversationMode.FREE_TOPIC  # Updated to use existing enum
-            )
+            # Use a managed DB transaction to satisfy PersistenceService API
+            with self.persistence.get_db_transaction() as db:
+                self.persistence.create_session(
+                    db=db,
+                    session_id=session_id,
+                    user_id=self.user_id,
+                    agent_type=AgentType.REALTIME,
+                    mode=ConversationMode.FREE_TOPIC  # Updated to use existing enum
+                )
             
             # Initialize RealtimeAgent (lazy import to avoid circular imports)
             from agents.realtime_agent import RealtimeAgent
