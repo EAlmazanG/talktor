@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     
     # OpenAI
     openai_api_key: str
-    openai_model: str = "gpt-4o-realtime-preview-2024-10-01"
+    openai_model: str = "gpt-4o-mini-realtime-preview"
     openai_ws_url: str = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01"
     openai_chat_model: str = "gpt-4o"  # For StandardAgent
     openai_voice: str = "alloy"  # Voice for realtime conversations
