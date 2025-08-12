@@ -34,7 +34,7 @@ This document explains the new modular architecture for the Talktor backend, whi
 - **ConversationService**: Processes conversation logic and function calls
 - Handles the `continue_conversation` function (expandable for future features)
 - Manages conversation context and summaries
-- Placeholder for future feedback and analysis features
+- Integrates feedback generation and end-of-conversation logic (via StandardAgent and PersistenceService)
 
 ### 3. Agents Layer (`agents/`)
 
@@ -100,28 +100,22 @@ await agent.start_conversation(
 await agent.stop_conversation()
 ```
 
-## Future Extensions
+## Current Implementation
 
-The architecture is designed to easily accommodate future features:
+- Database integration implemented with SQLAlchemy models (sessions, transcripts, feedback, homework, vocabulary) and a PersistenceService with transactional operations.
+- FastAPI API layer implemented (versioned v1 routers):
+  - Conversations: POST /api/v1/conversations/start, WS /api/v1/conversations/{id}/realtime, POST /api/v1/conversations/{id}/end, GET /api/v1/conversations/{id}, GET /api/v1/conversations/{id}/transcript
+  - Feedback: GET /api/v1/feedback/{session_id}, GET /api/v1/feedback/{session_id}/summary, POST /api/v1/feedback/{session_id}/generate (placeholder implementation)
+  - Sessions: GET /api/v1/users/{user_id}/sessions
+- Realtime pipeline integrates barge-in handling (speech_started → response.cancel + playback.clear), upstream/downstream event bridging, and clean finalization hooks.
+- Structured logging with dual output and centralized logs/ directory.
 
-### Database Integration
-- Add persistence services to save sessions, transcripts, and feedback
-- Implement user management and progress tracking
+## Next Steps
 
-### Feedback Engine
-- Extend `ConversationService` to analyze conversations
-- Add scoring for the 6 language pillars
-- Generate personalized homework and recommendations
-
-### API Layer
-- Add FastAPI endpoints for session management
-- Implement WebSocket endpoints for real-time communication
-- Create REST APIs for user management and analytics
-
-### Additional Agents
-- **StandardAgent**: For text-based exercises and homework
-- **FeedbackAgent**: For conversation analysis and scoring
-- **HomeworkAgent**: For generating and managing assignments
+- Implement full feedback generation in POST /api/v1/feedback/{session_id}/generate using StandardAgent and PersistenceService.
+- Frontend integration to consume REST and WebSocket APIs.
+- Additional polish for real-time voice client (reconnection/backpressure).
+- Authentication and user management (as needed).
 
 ## Error Handling
 

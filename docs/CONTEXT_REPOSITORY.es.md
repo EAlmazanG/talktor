@@ -17,15 +17,18 @@
 ├── .env                          # Variables de entorno (no en git)
 ├── .gitignore                    # Archivos ignorados por git
 ├── LICENSE                       # Licencia del proyecto
-├── README.md                     # Documentación básica (solo título)
+├── README.md                     # Documentación básica
 ├── docker-compose.yml            # Configuración Docker producción
 ├── docker-compose.dev.yml        # Configuración Docker desarrollo
-├── CONTEXT_REPOSITORY.md         # Este archivo de contexto
+├── docs/                         # Documentación del proyecto
+│   ├── CONTEXT_REPOSITORY.md     # Contexto del repositorio (este archivo)
+│   └── ARCHITECTURE.md           # Arquitectura del backend
 ├── backend/                      # Código del backend
 ├── frontend/                     # Frontend (vacío actualmente)
-├── scripts/                      # Scripts de desarrollo y POC
-├── tests/                        # Tests de nivel raíz (vacío)
-└── talktor-env/                  # Entorno virtual Python
+├── scripts/                      # Scripts (dev/ y ops/)
+├── tests/                        # Tests de nivel raíz (vacío actualmente)
+├── .venv/                        # Entorno virtual Python (preferido)
+└── talktor-env/                  # Entorno virtual legacy (fallback)
 ```
 
 ### 📂 **BACKEND** (`/backend/`)
@@ -58,7 +61,7 @@
 - `crud.py` - Operaciones CRUD completas
 
 #### 📁 **API** (`/backend/api/`)
-**Endpoints REST/WebSocket (vacío actualmente)**
+**Endpoints REST/WebSocket implementados (v1): conversations, feedback, sessions, users**
 
 #### 📁 **Schemas** (`/backend/schemas/`)
 **Esquemas Pydantic (vacío actualmente)**
@@ -82,19 +85,19 @@
 - `requirements.txt` - Dependencias Python completas
 - `Dockerfile` - Imagen Docker del backend
 - `start.sh` - Script de inicio del contenedor
-- `README_ARCHITECTURE.md` - Documentación detallada de arquitectura
+- `docs/ARCHITECTURE.md` - Documentación detallada de arquitectura
 
 ### 📂 **SCRIPTS** (`/scripts/`)
 **Scripts de desarrollo y POC**
-- `realtime_poc.py` - POC original funcional (referencia)
-- `dev_start.sh` - Iniciar entorno de desarrollo
-- `dev_stop.sh` - Parar entorno de desarrollo
-- `prod_start.sh` - Iniciar entorno de producción
-- `prod_stop.sh` - Parar entorno de producción
-- `view_logs.py` - Visor de logs con búsqueda y seguimiento
-- `demo_logging.py` - Demostración del sistema de logging
-- `migrate_feedback_table.py` - Migración inicial de tabla feedback
-- `migrate_feedback_columns_to_english.py` - Migración de columnas a inglés
+- `dev/view_logs.py` - Visor de logs con búsqueda y seguimiento
+- `dev/demo_logging.py` - Demostración del sistema de logging
+- `ops/dev_start.sh` - Iniciar entorno de desarrollo (.venv preferido, fallback a talktor-env)
+- `ops/dev_stop.sh` - Parar entorno de desarrollo
+- `ops/prod_start.sh` - Iniciar entorno de producción
+- `ops/prod_stop.sh` - Parar entorno de producción
+- `interactive_audio_ws_client.py` - Cliente WebSocket interactivo para audio
+
+Nota: Las migraciones de base de datos ahora están en `backend/db/migrations/`.
 
 ### 📂 **FRONTEND** (`/frontend/`)
 **Frontend (vacío actualmente)**
@@ -265,7 +268,7 @@ Base de datos PostgreSQL
 ## 📋 PENDIENTES IDENTIFICADOS
 
 ### 🚧 **Próximos pasos**
-1. **Endpoints FastAPI** - API REST/WebSocket para frontend
+1. **Integración frontend** - Consumir API REST/WebSocket desde UI
 2. **Frontend** - Interfaz de usuario (Streamlit/Gradio)
 3. **Comandos de terminación** - Comandos de voz para finalizar
 4. **API Key OpenAI** - Configuración para feedback real
@@ -325,7 +328,7 @@ PGADMIN_DEFAULT_PASSWORD=
 - ✅ **Formateo diferenciado**: Más detalle en archivos (función:línea)
 - ✅ **Detección automática**: Nombre del servicio desde el módulo principal
 - ✅ **Gestión de ruido**: Filtros para websockets, urllib3, asyncio
-- ✅ **Directorio centralizado**: `/backend/logs/` con `.gitkeep`
+- ✅ **Directorio centralizado**: `logs/` (raíz del repositorio)
 
 ### **Utilidades disponibles**
 
