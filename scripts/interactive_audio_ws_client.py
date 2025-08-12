@@ -271,6 +271,15 @@ class InteractiveVoiceClient:
             elif t == "user_transcript.completed":
                 transcript = data.get("transcript", "")
                 print(f"You (VAD)> {transcript}")
+            elif t == "playback.clear":
+                # Server indicates user started speaking; clear any buffered TTS
+                reason = data.get("reason", "")
+                print(f"[WS] << playback.clear ({reason}) -> stopping local audio")
+                with self.audio.playback_lock:
+                    self.audio.playback_buffer.clear()
+                # Reset TTS/response flags so mic can flow
+                self._tts_active.clear()
+                self._response_in_progress.clear()
             elif t in {"response.output_item.added"}:
                 # TTS likely started
                 self._tts_active.set()
@@ -302,6 +311,12 @@ class InteractiveVoiceClient:
                     if evt in {"response.created", "response.output_item.added", "response.content_part.added"}:
                         self._response_in_progress.set()
                     elif evt in {"response.output_item.done", "response.audio.done", "response.done"}:
+                        self._response_in_progress.clear()
+                    elif evt == "input_audio_buffer.speech_started":
+                        # Defensive: if upstream event forwarded, clear playback immediately
+                        with self.audio.playback_lock:
+                            self.audio.playback_buffer.clear()
+                        self._tts_active.clear()
                         self._response_in_progress.clear()
                 else:
                     print(f"[WS] << event: {t}")

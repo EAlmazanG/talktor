@@ -8,6 +8,7 @@ import base64
 from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+import re
 from sqlalchemy.orm import Session
 
 from api.deps import get_db, get_persistence_service, get_user_id_from_header, validate_user_access
@@ -178,6 +179,34 @@ async def conversation_websocket(
                 except Exception:
                     pass
 
+    # Helper: detect end-of-conversation phrases in user speech
+    END_PATTERNS = [
+        r"\bbye\b",
+        r"\bgoodbye\b",
+        r"\bend\b",
+        r"\bfinish\b",
+        r"\bstop\b",
+        r"\badios\b",
+        r"\badiós\b",
+        r"\bhasta\s+luego\b",
+        r"\bterminamos\b",
+        r"\bfin\b",
+        r"\bchao\b",
+        r"\bciao\b",
+    ]
+
+    def is_end_phrase(text: str) -> bool:
+        s = (text or "").strip().lower()
+        if not s:
+            return False
+        for p in END_PATTERNS:
+            if re.search(p, s):
+                # Avoid false positive for 'maybe'
+                if p == r"\bbye\b" and "maybe" in s:
+                    continue
+                return True
+        return False
+
     # Upstream connection
     try:
         ws = await openai_service.connect_websocket(session_state)
@@ -196,6 +225,21 @@ async def conversation_websocket(
 
             if event_type == "session.created":
                 await websocket.send_text(json.dumps({"type": "session.created"}))
+                return
+
+            # User started speaking (detected by OpenAI VAD) -> barge-in
+            if event_type == "input_audio_buffer.speech_started":
+                # 1) Ask OpenAI to cancel any ongoing response to stop further TTS
+                try:
+                    await openai_service.send_message(state, {"type": "response.cancel"})
+                except Exception:
+                    # It's ok if there's no active response
+                    pass
+                # 2) Tell client to clear its local playback buffer for instant stop
+                try:
+                    await websocket.send_text(json.dumps({"type": "playback.clear", "reason": "speech_started"}))
+                except Exception:
+                    pass
                 return
 
             if event_type == "response.audio.delta":
@@ -221,6 +265,18 @@ async def conversation_websocket(
                 if transcript:
                     conversation_service.update_conversation_context(state, "user", transcript)
                     await websocket.send_text(json.dumps({"type": "user_transcript.completed", "transcript": transcript}))
+                    # If user said an end phrase, cancel and finalize gracefully
+                    if is_end_phrase(transcript):
+                        try:
+                            await openai_service.send_message(state, {"type": "response.cancel"})
+                        except Exception:
+                            pass
+                        # Notify client to clear any remaining playback then end
+                        try:
+                            await websocket.send_text(json.dumps({"type": "playback.clear", "reason": "end_phrase"}))
+                        except Exception:
+                            pass
+                        await finalize(reason="user_end_phrase")
                 return
 
             if event_type == "response.audio_transcript.delta":
@@ -292,8 +348,10 @@ async def conversation_websocket(
                         continue
 
                     if msg_type == "audio_commit":
+                        # With server-side VAD enabled, OpenAI will automatically
+                        # create a response after commit. Avoid sending response.create
+                        # here to prevent the model from replying twice or talking to itself.
                         await openai_service.send_message(session_state, {"type": "input_audio_buffer.commit"})
-                        await openai_service.send_message(session_state, {"type": "response.create"})
                         continue
 
                     # Passthrough: forward unknown JSON as-is to OpenAI
