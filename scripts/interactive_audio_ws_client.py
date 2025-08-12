@@ -176,6 +176,22 @@ class InteractiveVoiceClient:
         )
         self.state.send_mic_enabled.set()  # default: send mic
 
+        # Half-duplex gating to prevent echo/self-interruption
+        # When TTS audio is playing, temporarily pause sending mic audio upstream.
+        self._tts_active = threading.Event()
+        self._tts_last_audio_ts = 0.0
+        # How long (ms) to keep the mic paused after the last TTS audio frame
+        self.duck_ms = 500
+
+        # Track whether the server is currently producing a response (TTS in progress)
+        self._response_in_progress = threading.Event()
+
+        # Track how much mic audio has been sent since the last commit (to avoid empty commits)
+        self._mic_bytes_since_commit = 0
+        # Require at least this much audio before committing (>=100ms required by server)
+        self.min_commit_ms = 150
+        self._min_commit_bytes = int(SAMPLE_RATE * BYTES_PER_SAMPLE * (self.min_commit_ms / 1000.0))
+
         # WebSocket state
         self.ws_open_event = threading.Event()
 
@@ -227,10 +243,9 @@ class InteractiveVoiceClient:
             self.ws_open_event.set()
 
         def on_message(ws, message):
-            # Some websocket-client setups deliver binary frames here; handle them.
+            # Treat on_message as TEXT-only to avoid double-appending audio.
             if isinstance(message, (bytes, bytearray)):
-                if not self.state.playback_muted.is_set():
-                    self.audio.append_playback(bytes(message))
+                # Binary frames are handled in on_data()
                 return
 
             try:
@@ -256,23 +271,50 @@ class InteractiveVoiceClient:
             elif t == "user_transcript.completed":
                 transcript = data.get("transcript", "")
                 print(f"You (VAD)> {transcript}")
+            elif t in {"response.output_item.added"}:
+                # TTS likely started
+                self._tts_active.set()
+                self._response_in_progress.set()
+            elif t in {"response.output_item.done", "response.done"}:
+                # TTS likely finished; mark last activity to allow a short duck window
+                self._tts_last_audio_ts = time.time()
+                self._response_in_progress.clear()
             elif t == "function_call.handled":
                 print(f"[WS] << function_call.handled: call_id={data.get('call_id')}")
             elif t == "ended":
                 print(f"[WS] << ended: {data}")
                 self.state.stop_event.set()
             elif t == "error":
-                print(f"[WS] << error: {data.get('payload')}")
+                payload = data.get("payload") or {}
+                print(f"[WS] << error: {payload}")
+                # Adjust state to avoid repeated empty commits or competing with active responses
+                code = payload.get("code")
+                if code == "input_audio_buffer_commit_empty":
+                    self._has_uncommitted_audio = False
+                    self._mic_bytes_since_commit = 0
+                elif code == "conversation_already_has_active_response":
+                    self._response_in_progress.set()
             else:
                 evt = data.get("event")
                 if evt:
                     print(f"[WS] << upstream: {evt}")
+                    # Mirror response state updates from upstream events
+                    if evt in {"response.created", "response.output_item.added", "response.content_part.added"}:
+                        self._response_in_progress.set()
+                    elif evt in {"response.output_item.done", "response.audio.done", "response.done"}:
+                        self._response_in_progress.clear()
                 else:
                     print(f"[WS] << event: {t}")
 
         def on_data(ws, data, data_type, cont):
             # Binary frames are AI audio in pcm16@24kHz
             if isinstance(data, (bytes, bytearray)):
+                # Mark TTS as active and record last audio time
+                self._tts_active.set()
+                self._tts_last_audio_ts = time.time()
+                # Avoid auto-committing stale or empty buffers while TTS is playing
+                self._has_uncommitted_audio = False
+                self._mic_bytes_since_commit = 0
                 if not self.state.playback_muted.is_set():
                     self.audio.append_playback(bytes(data))
             else:
@@ -357,6 +399,13 @@ class InteractiveVoiceClient:
                 continue
             if not self.state.send_mic_enabled.is_set():
                 continue
+            # Half-duplex gating: don't send mic while TTS is playing or just finished
+            if self._tts_active.is_set():
+                # Keep mic paused for a short window after the last TTS frame
+                if (time.time() - self._tts_last_audio_ts) < (self.duck_ms / 1000.0):
+                    continue
+                else:
+                    self._tts_active.clear()
             try:
                 if self.ws_app:
                     # Send explicitly as binary to avoid UTF-8 validation issues
@@ -364,6 +413,8 @@ class InteractiveVoiceClient:
                     # Mark that there is new uncommitted audio
                     self._has_uncommitted_audio = True
                     self._last_audio_send_ts = time.time()
+                    # Track how many bytes have been sent since last commit
+                    self._mic_bytes_since_commit += len(chunk)
 
                     # Simple RMS-based VAD to detect end of speech
                     try:
@@ -383,12 +434,16 @@ class InteractiveVoiceClient:
                                 self._silence_chunks >= self._silence_chunks_needed
                                 and self._has_uncommitted_audio
                                 and (time.time() - self._last_commit_ts) >= self.auto_commit_min_interval
+                                and not self._tts_active.is_set()
+                                and not self._response_in_progress.is_set()
+                                and self._mic_bytes_since_commit >= self._min_commit_bytes
                             ):
                                 try:
                                     self.ws_app.send(json.dumps({"type": "audio_commit"}))
                                     print("[WS] >> audio_commit (vad)")
                                     self._last_commit_ts = time.time()
                                     self._has_uncommitted_audio = False
+                                    self._mic_bytes_since_commit = 0
                                 except Exception:
                                     pass
                                 finally:
@@ -408,9 +463,17 @@ class InteractiveVoiceClient:
             time.sleep(0.1)
             if not self.ws_open_event.is_set():
                 continue
-            if not self._has_uncommitted_audio:
+            # Do not auto-commit if the server is already speaking or if TTS is active/recent
+            if self._response_in_progress.is_set():
                 continue
             now = time.time()
+            if self._tts_active.is_set() and (now - self._tts_last_audio_ts) < (self.duck_ms / 1000.0):
+                continue
+            if not self._has_uncommitted_audio:
+                continue
+            # Ensure we have enough audio to satisfy server minimums
+            if self._mic_bytes_since_commit < self._min_commit_bytes:
+                continue
             # Respect a minimum interval between commits
             if (now - self._last_audio_send_ts) >= self.auto_commit_silence and (now - self._last_commit_ts) >= self.auto_commit_min_interval:
                 try:
@@ -419,6 +482,7 @@ class InteractiveVoiceClient:
                         print("[WS] >> audio_commit (auto)")
                         self._last_commit_ts = now
                         self._has_uncommitted_audio = False
+                        self._mic_bytes_since_commit = 0
                 except Exception:
                     # Ignore send failures; next loop may succeed
                     pass
