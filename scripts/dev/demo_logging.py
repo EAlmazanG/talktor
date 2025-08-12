@@ -8,9 +8,19 @@ import logging
 import asyncio
 from pathlib import Path
 
-# Add backend to path
-backend_path = Path(__file__).parent.parent / "backend"
-sys.path.append(str(backend_path))
+def _find_repo_root(start: Path) -> Path:
+    """Walk up from start until a directory containing 'backend' is found."""
+    p = start.resolve()
+    while p != p.parent:
+        if (p / "backend").exists():
+            return p
+        p = p.parent
+    return start.resolve()
+
+# Add backend to path robustly regardless of script location
+repo_root = _find_repo_root(Path(__file__).parent)
+backend_path = repo_root / "backend"
+sys.path.insert(0, str(backend_path))
 
 # Change to backend directory for relative paths
 os.chdir(backend_path)
@@ -90,7 +100,7 @@ def main():
     
     print("\n✅ Demo completed!")
     print("📁 Check the logs/ directory for the generated log file.")
-    print("💡 Use 'python scripts/view_logs.py' to view logs easily.")
+    print("💡 Use 'python scripts/dev/view_logs.py' to view logs easily.")
 
 
 if __name__ == "__main__":

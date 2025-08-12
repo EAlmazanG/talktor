@@ -9,6 +9,11 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== Stopping Talktor production environment ===${NC}"
 
+# Determine repo root (two levels up from this script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "$REPO_ROOT"
+
 # Stop all services
 echo -e "${YELLOW}Stopping all services...${NC}"
 docker-compose -f docker-compose.yml down

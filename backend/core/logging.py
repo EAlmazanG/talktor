@@ -55,8 +55,12 @@ def setup_logging(
     
     # Create file handler if enabled
     if enable_file_logging:
+        # Resolve log directory relative to repository root to avoid per-module cwd differences
+        repo_root = Path(__file__).resolve().parents[2]
         log_dir = Path(log_directory)
-        log_dir.mkdir(exist_ok=True)
+        if not log_dir.is_absolute():
+            log_dir = repo_root / log_directory
+        log_dir.mkdir(exist_ok=True, parents=True)
         
         # Generate timestamp for log file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

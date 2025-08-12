@@ -12,9 +12,22 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== Starting Talktor development environment ===${NC}"
 
-# Activate virtual environment
+# Determine repo root (two levels up from this script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "$REPO_ROOT"
+
+# Activate virtual environment (.venv preferred, fallback to talktor-env)
 echo -e "${YELLOW}Activating virtual environment...${NC}"
-source talktor-env/bin/activate
+if [ -d ".venv" ]; then
+  source .venv/bin/activate
+elif [ -d "talktor-env" ]; then
+  source talktor-env/bin/activate
+else
+  echo -e "${RED}No virtual environment found (.venv/ or talktor-env/).${NC}"
+  echo -e "${YELLOW}Create one with: python3 -m venv .venv && source .venv/bin/activate && pip install -r backend/requirements.txt${NC}"
+  exit 1
+fi
 
 # Start database services with Docker Compose
 echo -e "${YELLOW}Starting database services in Docker...${NC}"

@@ -7,9 +7,19 @@ import sys
 import os
 from pathlib import Path
 
-# Add backend to path
-backend_path = Path(__file__).parent.parent / "backend"
-sys.path.append(str(backend_path))
+def _find_repo_root(start: Path) -> Path:
+    """Walk up from start until a directory containing 'backend' is found."""
+    p = start.resolve()
+    while p != p.parent:
+        if (p / "backend").exists():
+            return p
+        p = p.parent
+    return start.resolve()
+
+# Add backend to path robustly regardless of script location
+repo_root = _find_repo_root(Path(__file__).parent)
+backend_path = repo_root / "backend"
+sys.path.insert(0, str(backend_path))
 
 from core.log_utils import list_log_files, get_latest_log_file, tail_log_file, search_logs
 import argparse

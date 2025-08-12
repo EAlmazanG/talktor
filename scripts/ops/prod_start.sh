@@ -9,6 +9,11 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== Starting Talktor production environment ===${NC}"
 
+# Determine repo root (two levels up from this script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "$REPO_ROOT"
+
 # Load environment variables
 source .env
 

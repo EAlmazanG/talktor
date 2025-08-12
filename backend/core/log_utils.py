@@ -9,6 +9,15 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
 
+def _resolve_log_dir(log_directory: str) -> Path:
+    """Resolve the log directory relative to repository root if not absolute."""
+    repo_root = Path(__file__).resolve().parents[2]
+    log_dir = Path(log_directory)
+    if not log_dir.is_absolute():
+        log_dir = repo_root / log_directory
+    return log_dir
+
+
 def list_log_files(log_directory: str = "logs") -> List[Dict[str, str]]:
     """
     List all log files in the log directory with metadata
@@ -19,7 +28,7 @@ def list_log_files(log_directory: str = "logs") -> List[Dict[str, str]]:
     Returns:
         List of dictionaries with log file information
     """
-    log_dir = Path(log_directory)
+    log_dir = _resolve_log_dir(log_directory)
     if not log_dir.exists():
         return []
     
@@ -110,7 +119,7 @@ def cleanup_old_logs(log_directory: str = "logs", days_to_keep: int = 7) -> int:
     Returns:
         Number of files deleted
     """
-    log_dir = Path(log_directory)
+    log_dir = _resolve_log_dir(log_directory)
     if not log_dir.exists():
         return 0
     

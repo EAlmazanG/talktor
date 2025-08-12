@@ -5,7 +5,21 @@ Drops the old table and creates the new comprehensive feedback table
 """
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
+from pathlib import Path
+
+def _find_repo_root(start: Path) -> Path:
+    """Walk up from start until a directory containing 'backend' is found."""
+    p = start.resolve()
+    while p != p.parent:
+        if (p / "backend").exists():
+            return p
+        p = p.parent
+    return start.resolve()
+
+# Ensure backend is on sys.path regardless of where the script is executed from
+repo_root = _find_repo_root(Path(__file__).parent)
+backend_path = repo_root / "backend"
+sys.path.insert(0, str(backend_path))
 
 from sqlalchemy import text
 from db.database import get_db_session, engine

@@ -351,19 +351,19 @@ setup_logging(
 #### **view_logs.py** - Script de visualización
 ```bash
 # Listar todos los logs
-python scripts/view_logs.py --list
+python scripts/dev/view_logs.py --list
 
 # Ver últimas 50 líneas del log más reciente
-python scripts/view_logs.py --tail 50
+python scripts/dev/view_logs.py --tail 50
 
 # Buscar errores en todos los logs
-python scripts/view_logs.py --search "error"
+python scripts/dev/view_logs.py --search "error"
 
 # Seguir un log en tiempo real (como tail -f)
-python scripts/view_logs.py --follow
+python scripts/dev/view_logs.py --follow
 
 # Filtrar por servicio específico
-python scripts/view_logs.py --service "realtime_agent" --tail 20
+python scripts/dev/view_logs.py --service "realtime_agent" --tail 20
 ```
 
 ### **Formato de logs**
