@@ -14,4 +14,5 @@ from .standard_prompts import (
     HOMEWORK_SYSTEM_PROMPT,
     FLASHCARDS_SYSTEM_PROMPT,
     build_exercises_system_prompt,
+    ADVICE_SYSTEM_PROMPT,
 )

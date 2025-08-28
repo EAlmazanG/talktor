@@ -49,10 +49,10 @@ class OpenAIService:
                     "silence_duration_ms": 800
                 },
                 "tools": REALTIME_TOOLS
-                }
             }
         }
- def create_connection_with_ipv4(self, *args, **kwargs):
+
+    def create_connection_with_ipv4(self, *args, **kwargs):
         """Create WebSocket connection enforcing IPv4"""
         original_getaddrinfo = socket.getaddrinfo
         

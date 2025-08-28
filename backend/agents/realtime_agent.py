@@ -13,6 +13,7 @@ from services.session_state import SessionState, session_manager
 from services.openai_service import OpenAIService
 from services.audio_service import AudioService
 from services.conversation_service import ConversationService
+from prompts import REQUEST_FEEDBACK_MESSAGE_TEXT
 
 logger = get_logger(__name__)
 
@@ -369,7 +370,7 @@ class RealtimeAgent:
                     "role": "user",
                     "content": [{
                         "type": "input_text",
-                        "text": "The student has indicated they want to end the conversation. Please provide comprehensive feedback on our conversation using the enviar_feedback_conversacion function, then call end_conversation."
+                        "text": REQUEST_FEEDBACK_MESSAGE_TEXT
                     }]
                 }
             }
