@@ -70,10 +70,8 @@ export POSTGRES_HOST=localhost
 echo -e "${YELLOW}Activating virtual environment...${NC}"
 if [ -d ".venv" ]; then
   source .venv/bin/activate
-elif [ -d "talktor-env" ]; then
-  source talktor-env/bin/activate
 else
-  echo -e "${RED}No virtual environment found (.venv/ or talktor-env/).${NC}"
+  echo -e "${RED}No virtual environment found at .venv/.${NC}"
   echo -e "${YELLOW}Create one with: python3 -m venv .venv && source .venv/bin/activate && pip install -r backend/requirements.txt${NC}"
   exit 1
 fi

@@ -16,6 +16,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "$REPO_ROOT"
 
+# Show active virtualenv (if any)
+if [ -n "$VIRTUAL_ENV" ]; then
+  echo -e "${YELLOW}Active virtualenv: $VIRTUAL_ENV${NC}"
+  echo -e "${YELLOW}You can deactivate it with: 'deactivate'${NC}"
+fi
+
 # Stop local API (uvicorn) if running
 echo -e "${YELLOW}Stopping local API (uvicorn)...${NC}"
 UVICORN_PIDS=$(pgrep -f "uvicorn main:app --reload" || true)
