@@ -363,6 +363,15 @@ async def conversation_websocket(
                     msg_type = payload.get("type")
 
                     if msg_type == "end":
+                        # Cancel ongoing TTS and clear playback immediately
+                        try:
+                            await openai_service.send_message(session_state, {"type": "response.cancel"})
+                        except Exception:
+                            pass
+                        try:
+                            await websocket.send_text(json.dumps({"type": "playback.clear", "reason": "client_end"}))
+                        except Exception:
+                            pass
                         # If we already have feedback, finalize; otherwise request it
                         if getattr(agent_adapter, "conversation_feedback", None):
                             await finalize(reason="client_end_with_feedback")
@@ -405,6 +414,14 @@ async def conversation_websocket(
 
                 # Plain text commands
                 if text_msg.strip().lower() in {"end", "stop", "finish"}:
+                    try:
+                        await openai_service.send_message(session_state, {"type": "response.cancel"})
+                    except Exception:
+                        pass
+                    try:
+                        await websocket.send_text(json.dumps({"type": "playback.clear", "reason": "client_end"}))
+                    except Exception:
+                        pass
                     if getattr(agent_adapter, "conversation_feedback", None):
                         await finalize(reason="client_end_with_feedback")
                     else:
