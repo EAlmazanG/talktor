@@ -28,14 +28,14 @@ Root
 │   │   ├── view_logs.py
 │   │   └── demo_logging.py
 │   └── ops/                     # Operational helpers
-│       ├── dev_start.sh         # Prefers .venv; fallback talktor-env
+│       ├── dev_start.sh         # Uses .venv exclusively
 │       ├── dev_stop.sh
 │       ├── prod_start.sh
 │       └── prod_stop.sh
 ├── tests/                       # Root-level tests (currently minimal)
 ├── logs/                        # Centralized logs (created at runtime)
 ├── .venv/                       # Preferred Python virtualenv (ignored)
-└── talktor-env/                 # Legacy virtualenv (fallback)
+└── talktor-env/                 # Legacy virtualenv (unused)
 ```
 
 Backend
@@ -84,7 +84,7 @@ backend/
 
 ## Development Conventions
 
-- Virtualenv: `.venv/` preferred. Scripts in `scripts/ops/` will try `.venv` first, then `talktor-env/`.
+- Virtualenv: `.venv/` required. Scripts in `scripts/ops/` use `.venv` exclusively; no fallback.
 - Logs: All services write to the repository-root `logs/` directory via `backend/core/logging.py`.
 - Migrations: Keep migration utilities in `backend/db/migrations/`.
 - Scripts: Developer tools in `scripts/dev/`; operational helpers in `scripts/ops/`.
@@ -96,10 +96,11 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 
-# 2) Start dev DB services (Postgres + pgAdmin)
+# 2) Start dev services (DB + backend; uvicorn runs in background)
 ./scripts/ops/dev_start.sh
 
-# 3) Run the backend locally (from repo root)
+# 3) (Optional) Run the backend manually instead of step 2
+# From repo root with .venv active:
 uvicorn backend.main:app --reload --port 8000
 
 # 4) Run tests
