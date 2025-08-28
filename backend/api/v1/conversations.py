@@ -22,6 +22,7 @@ from services.openai_service import OpenAIService
 from services.session_state import SessionState
 from services.conversation_service import ConversationService
 from core.logging import get_logger
+from prompts import REQUEST_FEEDBACK_MESSAGE_TEXT
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/conversations", tags=["conversations"])
@@ -179,6 +180,38 @@ async def conversation_websocket(
                 except Exception:
                     pass
 
+    # Helper: request structured feedback explicitly and set a safety timeout
+    feedback_requested = False
+
+    async def request_feedback():
+        nonlocal feedback_requested
+        if feedback_requested:
+            return
+        feedback_requested = True
+        try:
+            # Send special user message to trigger feedback function call
+            await openai_service.send_message(session_state, {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": REQUEST_FEEDBACK_MESSAGE_TEXT}]
+                }
+            })
+            await openai_service.send_message(session_state, {"type": "response.create"})
+            logger.info("📣 Explicit feedback request sent to OpenAI")
+        except Exception as e:
+            logger.error(f"Error sending feedback request: {e}")
+
+        # Safety: if no feedback arrives within 6s, finalize anyway to avoid hanging
+        async def safety_finalize():
+            await asyncio.sleep(6)
+            if not finalized and not getattr(agent_adapter, "conversation_feedback", None):
+                logger.warning("⚠️ Feedback not received within 6s. Finalizing session without feedback.")
+                await finalize(reason="safety_no_feedback")
+
+        asyncio.create_task(safety_finalize())
+
     # Helper: detect end-of-conversation phrases in user speech
     END_PATTERNS = [
         r"\bbye\b",
@@ -265,7 +298,7 @@ async def conversation_websocket(
                 if transcript:
                     conversation_service.update_conversation_context(state, "user", transcript)
                     await websocket.send_text(json.dumps({"type": "user_transcript.completed", "transcript": transcript}))
-                    # If user said an end phrase, cancel and finalize gracefully
+                    # If user said an end phrase, cancel playback and request feedback explicitly
                     if is_end_phrase(transcript):
                         try:
                             await openai_service.send_message(state, {"type": "response.cancel"})
@@ -276,7 +309,7 @@ async def conversation_websocket(
                             await websocket.send_text(json.dumps({"type": "playback.clear", "reason": "end_phrase"}))
                         except Exception:
                             pass
-                        await finalize(reason="user_end_phrase")
+                        await request_feedback()
                 return
 
             if event_type == "response.audio_transcript.delta":
@@ -330,12 +363,24 @@ async def conversation_websocket(
                     msg_type = payload.get("type")
 
                     if msg_type == "end":
-                        await finalize(reason="client_end")
-                        break
+                        # If we already have feedback, finalize; otherwise request it
+                        if getattr(agent_adapter, "conversation_feedback", None):
+                            await finalize(reason="client_end_with_feedback")
+                        else:
+                            await request_feedback()
+                        continue
 
                     if msg_type == "input_text":
                         user_text = payload.get("text", "")
                         if user_text:
+                            # If text itself is an end phrase, request feedback instead of normal reply
+                            if is_end_phrase(user_text):
+                                try:
+                                    await openai_service.send_message(session_state, {"type": "response.cancel"})
+                                except Exception:
+                                    pass
+                                await request_feedback()
+                                continue
                             await openai_service.send_message(session_state, {
                                 "type": "conversation.item.create",
                                 "item": {
@@ -360,8 +405,11 @@ async def conversation_websocket(
 
                 # Plain text commands
                 if text_msg.strip().lower() in {"end", "stop", "finish"}:
-                    await finalize(reason="client_end")
-                    break
+                    if getattr(agent_adapter, "conversation_feedback", None):
+                        await finalize(reason="client_end_with_feedback")
+                    else:
+                        await request_feedback()
+                    continue
 
                 # Plain text treated as user message
                 await openai_service.send_message(session_state, {
