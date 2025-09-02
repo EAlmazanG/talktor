@@ -14,15 +14,19 @@ services:
     depends_on:
       - db
 
-  # Frontend service commented until implemented
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "4200:80"
-  #   networks:
-  #     - talktor-net
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Browser should reach backend via host-mapped port
+        NEXT_PUBLIC_API_BASE_URL: "http://localhost:8000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - talktor-net
 
   db:
     image: postgres:16
