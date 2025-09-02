@@ -405,6 +405,10 @@ async def conversation_websocket(
                         # With server-side VAD enabled, OpenAI will automatically
                         # create a response after commit. Avoid sending response.create
                         # here to prevent the model from replying twice or talking to itself.
+                        try:
+                            logger.info(f"🎙️ audio_commit received (session={session_id})")
+                        except Exception:
+                            pass
                         await openai_service.send_message(session_state, {"type": "input_audio_buffer.commit"})
                         continue
 
@@ -443,6 +447,10 @@ async def conversation_websocket(
             # Binary messages -> audio chunks
             if incoming.get("bytes") is not None:
                 audio_bytes = incoming["bytes"]
+                try:
+                    logger.info(f"🎧 received audio chunk: {len(audio_bytes)} bytes (session={session_id})")
+                except Exception:
+                    pass
                 encoded = base64.b64encode(audio_bytes).decode("utf-8")
                 await openai_service.send_audio_chunk(session_state, encoded)
                 continue
