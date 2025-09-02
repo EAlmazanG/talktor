@@ -122,12 +122,7 @@ export default function PracticePage() {
         onError: () => setError("WebSocket error"),
         // Only show the latest completed AI message (no streaming text)
         onUserDelta: () => {},
-        onUserCompleted: (t) => {
-          // If user says bye, end gracefully
-          if (/\b(bye|goodbye|see you|see ya|adios|hasta luego|ciao)\b/i.test(t)) {
-            void handleEnd();
-          }
-        },
+        onUserCompleted: () => {},
         onAiDelta: () => {},
         onAiCompleted: (t) => startTyping(t),
         onPlaybackClear: () => {
