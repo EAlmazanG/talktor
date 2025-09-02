@@ -60,7 +60,7 @@ export async function startMicStreaming(
 ): Promise<MicStreamController> {
   const targetRate = opts?.targetRate ?? 24000;
   const frameMs = opts?.frameMs ?? 40; // 40ms per send (~960 samples @ 24k)
-  const commitIntervalMs = opts?.commitIntervalMs ?? 250;
+  const commitIntervalMs = opts?.commitIntervalMs ?? 800; // commit less frequently to avoid chopped speech
 
   // Request mic
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -91,6 +91,7 @@ export async function startMicStreaming(
 
   let running = true;
   let leftover: Float32Array | null = null;
+  let sentSinceCommit = false; // track if any frames were sent since last commit
 
   const samplesPerChunk = Math.floor((audioCtx.sampleRate * frameMs) / 1000);
 
@@ -118,6 +119,7 @@ export async function startMicStreaming(
       const pcm16 = floatToPcm16(down);
       // Send as binary (raw PCM16 little-endian). Use Uint8Array to satisfy TS types.
       client.sendBinary(new Uint8Array(pcm16.buffer));
+      sentSinceCommit = true;
       offset += samplesPerChunk;
     }
 
@@ -126,7 +128,10 @@ export async function startMicStreaming(
   };
 
   const commitTimer = window.setInterval(() => {
-    client.sendJson({ type: "audio_commit" });
+    if (sentSinceCommit) {
+      client.sendJson({ type: "audio_commit" });
+      sentSinceCommit = false;
+    }
   }, commitIntervalMs);
 
   const stop = () => {
