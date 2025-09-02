@@ -11,8 +11,6 @@ export default function PracticePage() {
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [input, setInput] = useState("");
-  const [userTranscript, setUserTranscript] = useState("");
   const [aiTranscript, setAiTranscript] = useState("");
   const clientRef = useRef<RealtimeClient | null>(null);
   const micRef = useRef<MicStreamController | null>(null);
@@ -21,7 +19,6 @@ export default function PracticePage() {
   const [feedbackSummary, setFeedbackSummary] = useState<string | null>(null);
 
   const canStart = useMemo(() => !connecting && !connected && !sessionId, [connecting, connected, sessionId]);
-  const canSend = useMemo(() => connected && !ended, [connected, ended]);
   const canEnd = useMemo(() => connected && !!sessionId && !ended, [connected, sessionId, ended]);
 
   const reset = useCallback(() => {
@@ -39,8 +36,6 @@ export default function PracticePage() {
     setConnecting(false);
     setConnected(false);
     setError(null);
-    setInput("");
-    setUserTranscript("");
     setAiTranscript("");
     setEnded(false);
     setFeedbackSummary(null);
@@ -92,8 +87,9 @@ export default function PracticePage() {
           micRef.current = null;
         },
         onError: () => setError("WebSocket error"),
-        onUserDelta: (d) => setUserTranscript((prev) => prev + d),
-        onUserCompleted: (t) => setUserTranscript((prev) => (prev.endsWith("\n") ? prev : prev + "\n") + t + "\n"),
+        // Do not render user transcript in this UX
+        onUserDelta: () => {},
+        onUserCompleted: () => {},
         onAiDelta: (d) => setAiTranscript((prev) => prev + d),
         onAiCompleted: (t) => setAiTranscript((prev) => (prev.endsWith("\n") ? prev : prev + "\n") + t + "\n"),
         onPlaybackClear: () => {
@@ -128,12 +124,6 @@ export default function PracticePage() {
     }
   };
 
-  const handleSend = () => {
-    if (!clientRef.current || !input.trim()) return;
-    clientRef.current.sendText(input.trim());
-    setInput("");
-  };
-
   const handleEnd = async () => {
     if (!clientRef.current || !sessionId) return;
     try {
@@ -153,82 +143,59 @@ export default function PracticePage() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
+    <div className="relative min-h-[70vh] flex flex-col items-center justify-center">
+      {/* Status panel (top-right corner) */}
+      <div className="fixed top-4 right-4 rounded-xl border bg-white/70 dark:bg-black/30 backdrop-blur px-4 py-3 text-xs shadow-sm space-y-1">
+        <div className="font-semibold">Status</div>
+        <div>Session: <span className="font-mono">{sessionId ?? "—"}</span></div>
+        <div>WS: {connected ? "connected" : connecting ? "connecting" : "disconnected"}</div>
+        <div>Mic: {micRef.current ? "on" : "off"}</div>
+        <div>Ended: {ended ? "yes" : "no"}</div>
+        {error && <div className="text-rose-600">{error}</div>}
+      </div>
+
+      {/* Controls */}
+      <div className="mb-6 flex items-center gap-3">
         <button
-          className="px-4 py-2 rounded-md bg-emerald-600 text-white disabled:opacity-50"
+          className="px-6 py-3 rounded-full bg-emerald-600 text-white text-sm md:text-base shadow hover:shadow-md hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
           onClick={handleStart}
           disabled={!canStart}
         >
-          Start Conversation
+          🚀 Start Conversation
         </button>
         <button
-          className="px-4 py-2 rounded-md bg-rose-600 text-white disabled:opacity-50"
+          className="px-6 py-3 rounded-full bg-rose-600 text-white text-sm md:text-base shadow hover:shadow-md hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
           onClick={handleEnd}
           disabled={!canEnd}
         >
-          End Conversation
+          ⏹ End Conversation
         </button>
         <button
-          className="px-3 py-2 rounded-md border ml-auto"
+          className="px-4 py-2 rounded-full border bg-white/50 dark:bg-white/10 text-xs shadow-sm hover:bg-white/70 transition"
           onClick={reset}
         >
           Reset
         </button>
       </div>
 
-      <div className="text-sm text-black/70 dark:text-white/70 grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <div className="font-semibold">Status</div>
-          <div className="text-xs">Session: {sessionId ?? "—"}</div>
-          <div className="text-xs">WS: {connected ? "connected" : connecting ? "connecting" : "disconnected"}</div>
-          <div className="text-xs">Mic: {micRef.current ? "on" : "off"}</div>
-          <div className="text-xs">Ended: {ended ? "yes" : "no"}</div>
-          {error && <div className="text-xs text-rose-600">{error}</div>}
-        </div>
-        <div className="space-y-1">
-          <div className="font-semibold">Actions</div>
-          <div className="flex gap-2">
-            <input
-              className="flex-1 px-3 py-2 rounded-md border bg-transparent"
-              placeholder="Type your message..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              disabled={!canSend}
-            />
-            <button
-              className="px-4 py-2 rounded-md border"
-              onClick={handleSend}
-              disabled={!canSend || !input.trim()}
-            >
-              Send
-            </button>
+      {/* Centered AI transcript */}
+      <div className="w-full max-w-2xl">
+        <div className="rounded-2xl border bg-white/70 dark:bg-black/30 backdrop-blur p-5 shadow-sm">
+          <div className="text-sm font-semibold mb-2">Talktor</div>
+          <div className="text-sm whitespace-pre-wrap min-h-40 leading-relaxed">
+            {aiTranscript || (connected ? "(Listening...)" : "(Press Start to begin)")}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <div className="font-semibold mb-1">You</div>
-          <pre className="p-3 rounded-md border overflow-auto whitespace-pre-wrap text-sm min-h-48">{userTranscript || "(waiting...)"}</pre>
-        </div>
-        <div>
-          <div className="font-semibold mb-1">Talktor</div>
-          <pre className="p-3 rounded-md border overflow-auto whitespace-pre-wrap text-sm min-h-48">{aiTranscript || "(waiting...)"}</pre>
-        </div>
-      </div>
-
+      {/* Feedback summary after end */}
       {ended && (
-        <div className="rounded-md border p-3">
-          <div className="font-semibold mb-1">Feedback summary</div>
-          <div className="text-sm whitespace-pre-wrap">
-            {feedbackSummary ? feedbackSummary : "No summary available yet."}
+        <div className="mt-6 w-full max-w-2xl">
+          <div className="rounded-2xl border p-5 bg-white/80 dark:bg-black/30 backdrop-blur">
+            <div className="text-sm font-semibold mb-2">Feedback summary</div>
+            <div className="text-sm whitespace-pre-wrap">
+              {feedbackSummary ? feedbackSummary : "No summary available yet."}
+            </div>
           </div>
         </div>
       )}
