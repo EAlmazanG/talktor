@@ -18,9 +18,39 @@ export default function PracticePage() {
   const playerRef = useRef<AiAudioPlayer | null>(null);
   const [ended, setEnded] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackSummaryResponse | null>(null);
+  const typingTimerRef = useRef<number | null>(null);
 
   const canStart = useMemo(() => !connecting && !connected && !sessionId, [connecting, connected, sessionId]);
   const canEnd = useMemo(() => connected && !!sessionId && !ended, [connected, sessionId, ended]);
+
+  const controlsClass = useMemo(() => {
+    const base = "flex items-center gap-3 transition-all duration-300 ease-out";
+    if (connecting || connected) {
+      return base + " -translate-y-2 md:-translate-y-3 mb-12 md:mb-16";
+    }
+    return base + " mb-6";
+  }, [connecting, connected]);
+
+  const stopTyping = () => {
+    if (typingTimerRef.current != null) {
+      window.clearInterval(typingTimerRef.current);
+      typingTimerRef.current = null;
+    }
+  };
+
+  const startTyping = (text: string) => {
+    stopTyping();
+    setAiMessage("");
+    let i = 0;
+    const step = 2; // fast typing: 2 chars per tick
+    typingTimerRef.current = window.setInterval(() => {
+      i += step;
+      setAiMessage(text.slice(0, i));
+      if (i >= text.length) {
+        stopTyping();
+      }
+    }, 12);
+  };
 
   const reset = useCallback(() => {
     clientRef.current?.close();
@@ -40,6 +70,7 @@ export default function PracticePage() {
     setAiMessage("");
     setEnded(false);
     setFeedback(null);
+    stopTyping();
   }, []);
 
   useEffect(() => {
@@ -91,9 +122,14 @@ export default function PracticePage() {
         onError: () => setError("WebSocket error"),
         // Only show the latest completed AI message (no streaming text)
         onUserDelta: () => {},
-        onUserCompleted: () => {},
+        onUserCompleted: (t) => {
+          // If user says bye, end gracefully
+          if (/\b(bye|goodbye|see you|see ya|adios|hasta luego|ciao)\b/i.test(t)) {
+            void handleEnd();
+          }
+        },
         onAiDelta: () => {},
-        onAiCompleted: (t) => setAiMessage(t),
+        onAiCompleted: (t) => startTyping(t),
         onPlaybackClear: () => {
           // Clear buffered AI audio when barge-in or end requested
           playerRef.current?.clear();
@@ -102,6 +138,8 @@ export default function PracticePage() {
           setEnded(true);
           try { micRef.current?.stop(); } catch {}
           micRef.current = null;
+          // Farewell message with subtle fade-up
+          startTyping("See you soon!");
           // Try to fetch feedback summary if available
           try {
             const sid = res.session_id;
@@ -131,6 +169,8 @@ export default function PracticePage() {
     try {
       try { micRef.current?.stop(); } catch {}
       micRef.current = null;
+      // Show farewell immediately
+      startTyping("See you soon!");
       clientRef.current.end();
       await endConversation(sessionId);
       setEnded(true);
@@ -160,7 +200,7 @@ export default function PracticePage() {
       </div>
 
       {/* Controls */}
-      <div className="mb-6 flex items-center gap-3">
+      <div className={controlsClass}>
         <button
           className="px-5 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           onClick={handleStart}
@@ -185,7 +225,12 @@ export default function PracticePage() {
 
       {/* Centered AI message (clean, no frames) */}
       <div className="w-full max-w-3xl px-4">
-        <div className="text-center text-xl md:text-2xl font-light leading-relaxed text-gray-900 dark:text-gray-100">
+        <div
+          className={
+            "text-center text-xl md:text-2xl font-light leading-relaxed text-gray-900 dark:text-gray-100 transition-all duration-300 ease-out " +
+            (ended ? "opacity-70 -translate-y-1 md:-translate-y-2" : "")
+          }
+        >
           {aiMessage || (connected ? "Listening..." : "Press Start to begin")}
         </div>
       </div>
