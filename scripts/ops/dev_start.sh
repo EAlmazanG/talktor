@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Script to start the Talktor local development environment
-# This script starts the databases in Docker and the backend locally
+# This script starts the databases in Docker, the backend locally,
+# and (optionally) the frontend in a Docker dev container if port 3000 is free.
 
 # Colors for messages
 GREEN='\033[0;32m'
@@ -123,6 +124,18 @@ else
   echo "------ Last 80 lines of ${LOG_FILE} ------"
   tail -n 80 "${LOG_FILE}" || true
   exit 1
+fi
+
+# Optionally start the frontend in a Docker dev container
+cd "$REPO_ROOT"
+echo -e "${YELLOW}Checking if port 3000 is already in use (frontend)...${NC}"
+PORT3000_PID=$(lsof -i :3000 -sTCP:LISTEN -t 2>/dev/null)
+if [ -z "$PORT3000_PID" ]; then
+  echo -e "${GREEN}Port 3000 is free. Starting frontend dev container...${NC}"
+  $DOCKER_COMPOSE -f docker-compose.dev.yml up -d frontend
+  echo -e "${GREEN}Frontend available at http://localhost:3000${NC}"
+else
+  echo -e "${YELLOW}Port 3000 is in use (PID $PORT3000_PID). Skipping frontend container start.${NC}"
 fi
 
 echo -e "${YELLOW}To stop the API later: kill ${UVICORN_PID} (or pkill -f \"uvicorn main:app --reload\")${NC}"

@@ -33,6 +33,7 @@ if docker-compose ps | grep -q "Up"; then
     echo -e "${GREEN}=== Talktor is now available ===${NC}"
     echo -e "API: http://localhost:8000"
     echo -e "API Documentation: http://localhost:8000/docs"
+    echo -e "Frontend: http://localhost:3000"
     echo -e "pgAdmin: http://localhost:5050"
 else
     echo -e "${RED}Error: Some services failed to start. Check logs with 'docker-compose logs'.${NC}"
