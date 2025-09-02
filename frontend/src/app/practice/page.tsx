@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { endConversation, getFeedbackSummary, startConversation } from "@/lib/api";
 import { openRealtimeWebSocket, type RealtimeClient } from "@/lib/ws";
+import { startMicStreaming, createAiAudioPlayer, type MicStreamController, type AiAudioPlayer } from "@/lib/audio";
 
 export default function PracticePage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -14,6 +15,8 @@ export default function PracticePage() {
   const [userTranscript, setUserTranscript] = useState("");
   const [aiTranscript, setAiTranscript] = useState("");
   const clientRef = useRef<RealtimeClient | null>(null);
+  const micRef = useRef<MicStreamController | null>(null);
+  const playerRef = useRef<AiAudioPlayer | null>(null);
   const [ended, setEnded] = useState(false);
   const [feedbackSummary, setFeedbackSummary] = useState<string | null>(null);
 
@@ -24,6 +27,13 @@ export default function PracticePage() {
   const reset = useCallback(() => {
     clientRef.current?.close();
     clientRef.current = null;
+    try { micRef.current?.stop(); } catch {}
+    micRef.current = null;
+    if (playerRef.current) {
+      playerRef.current.clear();
+      // do not close the AudioContext to allow reuse; but we can close to free resources
+      // void playerRef.current.close();
+    }
     setSessionId(null);
     setWsUrl(null);
     setConnecting(false);
@@ -39,6 +49,13 @@ export default function PracticePage() {
   useEffect(() => {
     return () => {
       clientRef.current?.close();
+      try { micRef.current?.stop(); } catch {}
+      micRef.current = null;
+      if (playerRef.current) {
+        // Close audio player resources on unmount
+        void playerRef.current.close();
+        playerRef.current = null;
+      }
     };
   }, []);
 
@@ -50,19 +67,43 @@ export default function PracticePage() {
       setSessionId(res.session_id);
       setWsUrl(res.websocket_url);
 
+      // Ensure an AI audio player exists for playback
+      if (!playerRef.current) {
+        playerRef.current = createAiAudioPlayer();
+      } else {
+        playerRef.current.clear();
+      }
+
       const client = openRealtimeWebSocket(res.websocket_url, {
-        onOpen: () => setConnected(true),
-        onClose: () => setConnected(false),
+        onOpen: () => {
+          setConnected(true);
+          // Start microphone streaming once the socket is open
+          void startMicStreaming(client)
+            .then((ctrl) => {
+              micRef.current = ctrl;
+            })
+            .catch((e: any) => {
+              setError(`Microphone error: ${e?.message || "permission or device issue"}`);
+            });
+        },
+        onClose: () => {
+          setConnected(false);
+          try { micRef.current?.stop(); } catch {}
+          micRef.current = null;
+        },
         onError: () => setError("WebSocket error"),
         onUserDelta: (d) => setUserTranscript((prev) => prev + d),
         onUserCompleted: (t) => setUserTranscript((prev) => (prev.endsWith("\n") ? prev : prev + "\n") + t + "\n"),
         onAiDelta: (d) => setAiTranscript((prev) => prev + d),
         onAiCompleted: (t) => setAiTranscript((prev) => (prev.endsWith("\n") ? prev : prev + "\n") + t + "\n"),
         onPlaybackClear: () => {
-          // no-op for text-only
+          // Clear buffered AI audio when barge-in or end requested
+          playerRef.current?.clear();
         },
         onEnded: async () => {
           setEnded(true);
+          try { micRef.current?.stop(); } catch {}
+          micRef.current = null;
           // Try to fetch feedback summary if available
           try {
             const sid = res.session_id;
@@ -71,6 +112,10 @@ export default function PracticePage() {
           } catch (_) {
             // ignore
           }
+        },
+        onBinaryAudio: (bytes) => {
+          // Feed AI PCM16 bytes for playback
+          playerRef.current?.feedPcm16(bytes);
         },
         onGeneric: () => {},
       });
@@ -92,6 +137,8 @@ export default function PracticePage() {
   const handleEnd = async () => {
     if (!clientRef.current || !sessionId) return;
     try {
+      try { micRef.current?.stop(); } catch {}
+      micRef.current = null;
       clientRef.current.end();
       await endConversation(sessionId);
       setEnded(true);
@@ -135,6 +182,7 @@ export default function PracticePage() {
           <div className="font-semibold">Status</div>
           <div className="text-xs">Session: {sessionId ?? "—"}</div>
           <div className="text-xs">WS: {connected ? "connected" : connecting ? "connecting" : "disconnected"}</div>
+          <div className="text-xs">Mic: {micRef.current ? "on" : "off"}</div>
           <div className="text-xs">Ended: {ended ? "yes" : "no"}</div>
           {error && <div className="text-xs text-rose-600">{error}</div>}
         </div>
