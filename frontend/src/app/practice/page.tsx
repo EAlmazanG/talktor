@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { endConversation, getFeedbackSummary, startConversation } from "@/lib/api";
+import Link from "next/link";
+import { endConversation, getFeedbackSummary, startConversation, type FeedbackSummaryResponse } from "@/lib/api";
 import { openRealtimeWebSocket, type RealtimeClient } from "@/lib/ws";
 import { startMicStreaming, createAiAudioPlayer, type MicStreamController, type AiAudioPlayer } from "@/lib/audio";
 
@@ -16,7 +17,7 @@ export default function PracticePage() {
   const micRef = useRef<MicStreamController | null>(null);
   const playerRef = useRef<AiAudioPlayer | null>(null);
   const [ended, setEnded] = useState(false);
-  const [feedbackSummary, setFeedbackSummary] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackSummaryResponse | null>(null);
 
   const canStart = useMemo(() => !connecting && !connected && !sessionId, [connecting, connected, sessionId]);
   const canEnd = useMemo(() => connected && !!sessionId && !ended, [connected, sessionId, ended]);
@@ -38,7 +39,7 @@ export default function PracticePage() {
     setError(null);
     setAiMessage("");
     setEnded(false);
-    setFeedbackSummary(null);
+    setFeedback(null);
   }, []);
 
   useEffect(() => {
@@ -105,7 +106,7 @@ export default function PracticePage() {
           try {
             const sid = res.session_id;
             const summary = await getFeedbackSummary(sid);
-            setFeedbackSummary(summary?.general_summary || "");
+            setFeedback(summary || null);
           } catch (_) {
             // ignore
           }
@@ -136,7 +137,7 @@ export default function PracticePage() {
       // Also refetch summary after explicit end
       try {
         const summary = await getFeedbackSummary(sessionId);
-        setFeedbackSummary(summary?.general_summary || "");
+        setFeedback(summary || null);
       } catch (_) {}
     } catch (e: any) {
       setError(e?.message || "Failed to end conversation");
@@ -189,13 +190,46 @@ export default function PracticePage() {
         </div>
       </div>
 
-      {/* Feedback summary after end (clean, no frames) */}
+      {/* Feedback after end (clean, spaced, includes scores) */}
       {ended && (
-        <div className="mt-6 w-full max-w-3xl px-4">
-          <div className="text-[11px] md:text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Feedback summary</div>
-          <div className="text-sm font-light whitespace-pre-wrap text-gray-900 dark:text-gray-100">
-            {feedbackSummary ? feedbackSummary : "No summary available yet."}
-          </div>
+        <div className="mt-10 w-full max-w-3xl px-4 space-y-4">
+          <div className="text-[11px] md:text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Feedback</div>
+          {feedback ? (
+            <>
+              <div className="text-base font-light whitespace-pre-wrap text-gray-900 dark:text-gray-100">
+                {feedback.general_summary || "No summary available."}
+              </div>
+              {(feedback.overall_score != null || feedback.pillar_scores) && (
+                <div className="space-y-2">
+                  {feedback.overall_score != null && (
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      Overall score: <span className="font-medium text-gray-900 dark:text-gray-100">{feedback.overall_score}</span>
+                    </div>
+                  )}
+                  {feedback.pillar_scores && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-1 gap-x-4 text-sm text-gray-600 dark:text-gray-300">
+                      {Object.entries(feedback.pillar_scores).map(([pillar, score]) => (
+                        <div key={pillar} className="flex items-center justify-between">
+                          <span className="capitalize">{pillar}</span>
+                          <span className="font-mono text-gray-900 dark:text-gray-100">{score as any}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div>
+                <Link
+                  href={`/progress/${encodeURIComponent(sessionId || feedback.session_id)}`}
+                  className="inline-flex items-center px-4 py-2 rounded-full border text-xs font-medium hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                >
+                  View details
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div className="text-sm font-light text-gray-600 dark:text-gray-300">No summary available yet.</div>
+          )}
         </div>
       )}
     </div>
