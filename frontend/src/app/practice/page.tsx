@@ -11,7 +11,7 @@ export default function PracticePage() {
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aiTranscript, setAiTranscript] = useState("");
+  const [aiMessage, setAiMessage] = useState("");
   const clientRef = useRef<RealtimeClient | null>(null);
   const micRef = useRef<MicStreamController | null>(null);
   const playerRef = useRef<AiAudioPlayer | null>(null);
@@ -36,7 +36,7 @@ export default function PracticePage() {
     setConnecting(false);
     setConnected(false);
     setError(null);
-    setAiTranscript("");
+    setAiMessage("");
     setEnded(false);
     setFeedbackSummary(null);
   }, []);
@@ -56,6 +56,7 @@ export default function PracticePage() {
 
   const handleStart = async () => {
     setError(null);
+    setAiMessage("");
     setConnecting(true);
     try {
       const res = await startConversation();
@@ -87,11 +88,11 @@ export default function PracticePage() {
           micRef.current = null;
         },
         onError: () => setError("WebSocket error"),
-        // Do not render user transcript in this UX
+        // Only show the latest completed AI message (no streaming text)
         onUserDelta: () => {},
         onUserCompleted: () => {},
-        onAiDelta: (d) => setAiTranscript((prev) => prev + d),
-        onAiCompleted: (t) => setAiTranscript((prev) => (prev.endsWith("\n") ? prev : prev + "\n") + t + "\n"),
+        onAiDelta: () => {},
+        onAiCompleted: (t) => setAiMessage(t),
         onPlaybackClear: () => {
           // Clear buffered AI audio when barge-in or end requested
           playerRef.current?.clear();
@@ -144,58 +145,56 @@ export default function PracticePage() {
 
   return (
     <div className="relative min-h-[70vh] flex flex-col items-center justify-center">
-      {/* Status panel (top-right corner) */}
-      <div className="fixed top-4 right-4 rounded-xl border bg-white/70 dark:bg-black/30 backdrop-blur px-4 py-3 text-xs shadow-sm space-y-1">
-        <div className="font-semibold">Status</div>
-        <div>Session: <span className="font-mono">{sessionId ?? "—"}</span></div>
-        <div>WS: {connected ? "connected" : connecting ? "connecting" : "disconnected"}</div>
-        <div>Mic: {micRef.current ? "on" : "off"}</div>
-        <div>Ended: {ended ? "yes" : "no"}</div>
-        {error && <div className="text-rose-600">{error}</div>}
+      {/* Status panel (bottom-right, minimal) */}
+      <div className="fixed bottom-4 right-4 text-[11px] md:text-xs text-gray-500 dark:text-gray-400 opacity-80">
+        <div className="flex items-center gap-2">
+          <span>WS: {connected ? "connected" : connecting ? "connecting" : "disconnected"}</span>
+          <span>•</span>
+          <span>Mic: {micRef.current ? "on" : "off"}</span>
+          <span>•</span>
+          <span>Ended: {ended ? "yes" : "no"}</span>
+        </div>
+        <div className="font-mono opacity-70">Session: {sessionId ?? "—"}</div>
+        {error && <div className="text-rose-500">{error}</div>}
       </div>
 
       {/* Controls */}
       <div className="mb-6 flex items-center gap-3">
         <button
-          className="px-6 py-3 rounded-full bg-emerald-600 text-white text-sm md:text-base shadow hover:shadow-md hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          className="px-5 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           onClick={handleStart}
           disabled={!canStart}
         >
-          🚀 Start Conversation
+          Start Conversation
         </button>
         <button
-          className="px-6 py-3 rounded-full bg-rose-600 text-white text-sm md:text-base shadow hover:shadow-md hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          className="px-5 py-2.5 rounded-full bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           onClick={handleEnd}
           disabled={!canEnd}
         >
-          ⏹ End Conversation
+          End Conversation
         </button>
         <button
-          className="px-4 py-2 rounded-full border bg-white/50 dark:bg-white/10 text-xs shadow-sm hover:bg-white/70 transition"
+          className="px-4 py-2 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white underline-offset-4 hover:underline transition-colors"
           onClick={reset}
         >
           Reset
         </button>
       </div>
 
-      {/* Centered AI transcript */}
-      <div className="w-full max-w-2xl">
-        <div className="rounded-2xl border bg-white/70 dark:bg-black/30 backdrop-blur p-5 shadow-sm">
-          <div className="text-sm font-semibold mb-2">Talktor</div>
-          <div className="text-sm whitespace-pre-wrap min-h-40 leading-relaxed">
-            {aiTranscript || (connected ? "(Listening...)" : "(Press Start to begin)")}
-          </div>
+      {/* Centered AI message (clean, no frames) */}
+      <div className="w-full max-w-3xl px-4">
+        <div className="text-center text-xl md:text-2xl font-light leading-relaxed text-gray-900 dark:text-gray-100">
+          {aiMessage || (connected ? "Listening..." : "Press Start to begin")}
         </div>
       </div>
 
-      {/* Feedback summary after end */}
+      {/* Feedback summary after end (clean, no frames) */}
       {ended && (
-        <div className="mt-6 w-full max-w-2xl">
-          <div className="rounded-2xl border p-5 bg-white/80 dark:bg-black/30 backdrop-blur">
-            <div className="text-sm font-semibold mb-2">Feedback summary</div>
-            <div className="text-sm whitespace-pre-wrap">
-              {feedbackSummary ? feedbackSummary : "No summary available yet."}
-            </div>
+        <div className="mt-6 w-full max-w-3xl px-4">
+          <div className="text-[11px] md:text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">Feedback summary</div>
+          <div className="text-sm font-light whitespace-pre-wrap text-gray-900 dark:text-gray-100">
+            {feedbackSummary ? feedbackSummary : "No summary available yet."}
           </div>
         </div>
       )}
