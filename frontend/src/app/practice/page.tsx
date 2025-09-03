@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { endConversation, getFeedbackSummary, startConversation, type FeedbackSummaryResponse } from "@/lib/api";
 import { openRealtimeWebSocket, type RealtimeClient } from "@/lib/ws";
 import { startMicStreaming, createAiAudioPlayer, type MicStreamController, type AiAudioPlayer } from "@/lib/audio";
@@ -26,9 +27,9 @@ export default function PracticePage() {
   const controlsClass = useMemo(() => {
     const base = "flex items-center gap-3 transition-all duration-300 ease-out";
     if (connecting || connected) {
-      return base + " -translate-y-2 md:-translate-y-3 mb-12 md:mb-16";
+      return base + " -translate-y-2 md:-translate-y-3 mb-16 md:mb-20";
     }
-    return base + " mb-6";
+    return base + " mb-8";
   }, [connecting, connected]);
 
   const stopTyping = () => {
@@ -181,6 +182,17 @@ export default function PracticePage() {
 
   return (
     <div className="relative min-h-[70vh] flex flex-col items-center justify-center">
+      {/* Large centered Talktor logo above controls */}
+      <div className="w-full flex items-center justify-center mb-8 md:mb-10">
+        <Image
+          src="/assets/icons/talktor.png"
+          alt="Talktor"
+          width={200}
+          height={200}
+          priority
+        />
+      </div>
+
       {/* Status panel (bottom-right, minimal) */}
       <div className="fixed bottom-4 right-4 text-[11px] md:text-xs text-gray-500 dark:text-gray-400 opacity-80">
         <div className="flex items-center gap-2">
@@ -194,28 +206,33 @@ export default function PracticePage() {
         {error && <div className="text-rose-500">{error}</div>}
       </div>
 
-      {/* Controls */}
-      <div className={controlsClass}>
-        <button
-          className="px-5 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          onClick={handleStart}
-          disabled={!canStart}
-        >
-          Start Conversation
-        </button>
-        <button
-          className="px-5 py-2.5 rounded-full bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          onClick={handleEnd}
-          disabled={!canEnd}
-        >
-          End Conversation
-        </button>
-        <button
-          className="px-4 py-2 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white underline-offset-4 hover:underline transition-colors"
-          onClick={reset}
-        >
-          Reset
-        </button>
+      {/* Controls: Reset on left, Start/End centered under the logo */}
+      <div className="w-full grid grid-cols-3 items-center">
+        <div className="flex justify-start">
+          <button
+            className="px-4 py-2 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white underline-offset-4 hover:underline transition-colors"
+            onClick={reset}
+          >
+            Reset
+          </button>
+        </div>
+        <div className={controlsClass + " justify-center"}>
+          <button
+            className="px-5 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            onClick={handleStart}
+            disabled={!canStart}
+          >
+            Start Conversation
+          </button>
+          <button
+            className="px-5 py-2.5 rounded-full bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            onClick={handleEnd}
+            disabled={!canEnd}
+          >
+            End Conversation
+          </button>
+        </div>
+        <div />
       </div>
 
       {/* Centered AI message (clean, no frames) */}

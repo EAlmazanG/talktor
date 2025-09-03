@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";
+import Image from "next/image";
 
 const tabs = [
   { href: "/practice", label: "Practice", emoji: "🟢" },
@@ -18,7 +19,17 @@ export function TabNav() {
     <nav className="w-full border-b border-black/10 dark:border-white/15 bg-white/80 dark:bg-black/50 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-50">
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex items-center gap-2 h-14">
-          <div className="font-semibold tracking-tight">Talktor</div>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/assets/icons/talktor.svg"
+              alt="Talktor logo"
+              width={28}
+              height={28}
+              className="rounded-sm"
+              priority
+            />
+            <div className="font-semibold tracking-tight">Talktor</div>
+          </div>
           <div className="ml-auto flex items-center gap-1">
             {tabs.map((t) => {
               const active = pathname === t.href || pathname.startsWith(`${t.href}/`);
