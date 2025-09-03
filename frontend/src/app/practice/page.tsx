@@ -74,7 +74,7 @@ export default function PracticePage() {
           setMessageOpacity(1);
           fadeTimerRef.current = window.setInterval(() => {
             setMessageOpacity((prev) => {
-              const dec = micLevelRef.current > 0.15 ? 0.18 : 0.06; // accelerate on voice
+              const dec = micLevelRef.current > 0.15 ? 0.09 : 0.03; // 2x slower fade; accelerate on voice
               const next = Math.max(0, prev - dec);
               if (next === 0) {
                 if (fadeTimerRef.current != null) {
