@@ -212,31 +212,47 @@ async def conversation_websocket(
 
         asyncio.create_task(safety_finalize())
 
-    # Helper: detect end-of-conversation phrases in user speech
+    # Helper: detect explicit end-of-conversation commands (NOT farewells)
     END_PATTERNS = [
-        r"\bbye\b",
-        r"\bgoodbye\b",
         r"\bend\b",
         r"\bfinish\b",
         r"\bstop\b",
-        r"\badios\b",
-        r"\badiós\b",
-        r"\bhasta\s+luego\b",
+        r"\bend\s+(conversation|session)\b",
+        r"\b(stop|finish)\s+(conversation|session)\b",
         r"\bterminamos\b",
-        r"\bfin\b",
-        r"\bchao\b",
-        r"\bciao\b",
+        r"\bterminar\b",
+        r"\bfinalizar\b",
+        r"\bfinaliza(r)?\b",
     ]
 
     def is_end_phrase(text: str) -> bool:
         s = (text or "").strip().lower()
         if not s:
             return False
-        for p in END_PATTERNS:
-            if re.search(p, s):
-                # Avoid false positive for 'maybe'
-                if p == r"\bbye\b" and "maybe" in s:
-                    continue
+
+        # Normalize punctuation spacing
+        import re as _re
+        s_norm = _re.sub(r"[^\w\s]", "", s)
+        words = s_norm.split()
+
+        # Exact single-word explicit commands
+        if len(words) == 1 and words[0] in {"end", "stop", "finish", "quit", "exit"}:
+            return True
+
+        # Explicit multi-word phrases
+        patterns = [
+            r"^(please\s+)?(end|stop|finish)\s+(the\s+)?(conversation|session)\b",
+            r"^(end|stop|finish)\s+now\b",
+            r"^(end|stop|finish)\s+it\b",
+            r"^(end|stop|finish)\s+this\s+(conversation|session)\b",
+            # Spanish explicit phrases (avoid farewells like adios/chao)
+            r"^(terminamos)$",
+            r"^terminar(\s+la\s+)?(conversacion|sesion)$",
+            r"^finalizar(\s+la\s+)?(conversacion|sesion)$",
+            r"^finaliza(r)?$",
+        ]
+        for pat in patterns:
+            if _re.search(pat, s_norm):
                 return True
         return False
 

@@ -303,58 +303,46 @@ class RealtimeAgent:
         return self.session_state is not None and self.session_state.is_active
     
     def _is_termination_command(self, transcript: str) -> bool:
-        """Check if the transcript contains a termination command"""
+        """Check if the transcript contains an explicit termination command.
+        Farewells like 'bye', 'goodbye', 'thanks' MUST NOT trigger termination.
+        Only clear commands such as 'end/stop/finish (the) conversation/session' or
+        single-word explicit commands like 'end', 'stop', 'finish', 'quit', 'exit'."""
         # Normalize the transcript for comparison - remove punctuation
         import re
         normalized = re.sub(r'[^\w\s]', '', transcript.lower().strip())
-        
+
         if not normalized:
             return False
-        
-        # ONLY accept very clear, unambiguous termination commands
-        clear_termination_words = [
-            "stop", "end", "finish", "quit", "bye", "goodbye", "exit", "done", 
-            "para", "termina", "finaliza", "adios", "chao", "thanks", "thankyou", "thank"
-        ]
-        
-        # Must be EXACTLY one of these words, or with simple modifiers
+
+        # Single word explicit commands only (no farewells)
+        single_word_commands = {"stop", "end", "finish", "quit", "exit"}
+
         words = normalized.split()
-        
-        # Single word termination
-        if len(words) == 1 and words[0] in clear_termination_words:
-            logger.debug(f"Single word termination detected: {words[0]}")
+
+        # Exact single-word command
+        if len(words) == 1 and words[0] in single_word_commands:
+            logger.debug(f"Single word explicit termination detected: {words[0]}")
             return True
-            
-        # Two word combinations that are clearly termination
-        if len(words) == 2:
-            clear_two_word_patterns = [
-                ("stop", "now"), ("end", "now"), ("finish", "now"),
-                ("that's", "all"), ("i'm", "done"), ("we're", "done"),
-                ("stop", "it"), ("end", "it"), ("finish", "it"),
-                ("thank", "you"), ("thanks", "bye"), ("goodbye", "now")
-            ]
-            
-            # Handle contractions
-            text_clean = normalized.replace("'", "")
-            words_clean = text_clean.split()
-            
-            for pattern in clear_two_word_patterns:
-                if (words[0], words[1]) == pattern or (words_clean[0] if len(words_clean) > 0 else "", words_clean[1] if len(words_clean) > 1 else "") == pattern:
-                    logger.debug(f"Two word termination detected: {pattern}")
-                    return True
-        
-        # Three word combinations
-        if len(words) == 3:
-            clear_three_word_patterns = [
-                ("let's", "stop", "now"), ("let's", "end", "now"), 
-                ("i", "want", "stop"), ("i", "want", "end")
-            ]
-            
-            for pattern in clear_three_word_patterns:
-                if (words[0], words[1], words[2]) == pattern:
-                    logger.debug(f"Three word termination detected: {pattern}")
-                    return True
-        
+
+        # Two/three-word explicit command phrases
+        # Examples: "end conversation", "stop session", "finish the conversation"
+        joined = " ".join(words)
+        explicit_patterns = [
+            r"\b(end|stop|finish)\s+(conversation|session)\b",
+            r"\b(end|stop|finish)\s+(the\s+)?(conversation|session)\b",
+            r"\b(end|stop|finish)\s+this\s+(conversation|session)\b",
+            r"\bplease\s+(end|stop|finish)\s+(the\s+)?(conversation|session)\b",
+            # Spanish explicit commands (avoid farewells):
+            r"\bterminar(\s+la\s+)?(conversacion|sesion)\b",
+            r"\bterminamos\b",
+            r"\bfinalizar(\s+la\s+)?(conversacion|sesion)\b",
+            r"\bfinaliza(r)?\b",
+        ]
+        for pat in explicit_patterns:
+            if re.search(pat, joined):
+                logger.debug(f"Explicit termination phrase matched: {pat}")
+                return True
+
         return False
     
     async def _request_conversation_feedback(self):
@@ -420,6 +408,9 @@ class RealtimeAgent:
         try:
             logger.info(colorize("🔴 Starting conversation termination...", Colors.BRIGHT_YELLOW))
             
+            # Explicitly request feedback from the model instead of relying on farewells
+            await self._request_conversation_feedback()
+
             # Keep connection open and wait for feedback
             if self.session_state and self.session_state.websocket_connection:
                 # Wait for feedback to be generated automatically
