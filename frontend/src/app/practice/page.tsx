@@ -219,7 +219,7 @@ export default function PracticePage() {
       {/* Large centered Talktor logo above controls */}
       <div className="w-full flex items-center justify-center mb-8 md:mb-10">
         {connecting || connected ? (
-          <AiRadialVisualizer player={playerRef.current} size={220} />
+          <AiRadialVisualizer player={playerRef.current} size={220} level={aiLevel} />
         ) : (
           <Image
             src="/assets/icons/talktor.png"
