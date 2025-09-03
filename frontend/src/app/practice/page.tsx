@@ -24,6 +24,10 @@ export default function PracticePage() {
   const levelTimerRef = useRef<number | null>(null);
   const levelSmoothRef = useRef(0);
   const [aiLevel, setAiLevel] = useState(0);
+  const micLevelRef = useRef(0);
+  const [messageOpacity, setMessageOpacity] = useState(1);
+  const fadeTimerRef = useRef<number | null>(null);
+  const [suppressPlaceholder, setSuppressPlaceholder] = useState(false);
 
   const canStart = useMemo(() => !connecting && !connected && !sessionId, [connecting, connected, sessionId]);
   const canEnd = useMemo(() => connected && !!sessionId && !ended, [connected, sessionId, ended]);
@@ -48,11 +52,42 @@ export default function PracticePage() {
     setAiMessage("");
     let i = 0;
     const step = 1; // slightly slower typing: 1 char per tick
+    // Reset fade/suppression for a new message
+    setSuppressPlaceholder(false);
+    setMessageOpacity(1);
+    if (fadeTimerRef.current != null) {
+      window.clearInterval(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
     typingTimerRef.current = window.setInterval(() => {
       i += step;
       setAiMessage(text.slice(0, i));
       if (i >= text.length) {
         stopTyping();
+        // After finishing, start a gradual fade unless it's the farewell message
+        if (text.trim() !== "See you soon!") {
+          // Begin with slow fade; will accelerate when mic input is detected
+          if (fadeTimerRef.current != null) {
+            window.clearInterval(fadeTimerRef.current);
+          }
+          setSuppressPlaceholder(true);
+          setMessageOpacity(1);
+          fadeTimerRef.current = window.setInterval(() => {
+            setMessageOpacity((prev) => {
+              const dec = micLevelRef.current > 0.15 ? 0.18 : 0.06; // accelerate on voice
+              const next = Math.max(0, prev - dec);
+              if (next === 0) {
+                if (fadeTimerRef.current != null) {
+                  window.clearInterval(fadeTimerRef.current);
+                  fadeTimerRef.current = null;
+                }
+                // Clear message to keep the area blank for the next transcript
+                setAiMessage("");
+              }
+              return next;
+            });
+          }, 100);
+        }
       }
     }, 30); // ~33 chars/second
   };
@@ -110,6 +145,10 @@ export default function PracticePage() {
         playerRef.current = null;
       }
       stopLevelTimer();
+      if (fadeTimerRef.current != null) {
+        window.clearInterval(fadeTimerRef.current);
+        fadeTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -135,7 +174,11 @@ export default function PracticePage() {
         onOpen: () => {
           setConnected(true);
           // Start microphone streaming once the socket is open
-          void startMicStreaming(client)
+          void startMicStreaming(client, {
+            onLevel: (lv: number) => {
+              micLevelRef.current = lv;
+            },
+          })
             .then((ctrl) => {
               micRef.current = ctrl;
             })
@@ -148,6 +191,7 @@ export default function PracticePage() {
           try { micRef.current?.stop(); } catch {}
           micRef.current = null;
           stopLevelTimer();
+          micLevelRef.current = 0;
         },
         onError: () => setError("WebSocket error"),
         // Only show the latest completed AI message (no streaming text)
@@ -167,6 +211,7 @@ export default function PracticePage() {
           try { micRef.current?.stop(); } catch {}
           micRef.current = null;
           stopLevelTimer();
+          micLevelRef.current = 0;
           // Farewell message with subtle fade-up
           startTyping("See you soon!");
           // Try to fetch feedback summary if available
@@ -204,6 +249,7 @@ export default function PracticePage() {
       await endConversation(sessionId);
       setEnded(true);
       stopLevelTimer();
+      micLevelRef.current = 0;
       // Also refetch summary after explicit end
       try {
         const summary = await getFeedbackSummary(sessionId);
@@ -301,8 +347,9 @@ export default function PracticePage() {
             "text-center text-xl md:text-2xl font-light leading-relaxed text-gray-900 dark:text-gray-100 transition-all duration-300 ease-out " +
             (ended ? "opacity-70 -translate-y-1 md:-translate-y-2" : "")
           }
+          style={aiMessage.trim() === "See you soon!" ? undefined : { opacity: messageOpacity }}
         >
-          {aiMessage || (connected ? "Listening..." : "Press Start to begin")}
+          {aiMessage || (suppressPlaceholder ? "" : connected ? "Listening..." : "Press Start to begin")}
         </div>
       </div>
 

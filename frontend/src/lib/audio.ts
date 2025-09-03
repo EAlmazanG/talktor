@@ -59,7 +59,7 @@ function resampleLinear(input: Float32Array, fromRate: number, toRate: number): 
 // Start microphone streaming: capture audio, downsample to 24kHz PCM16 mono, send over WebSocket as binary frames.
 export async function startMicStreaming(
   client: RealtimeClient,
-  opts?: { targetRate?: number; frameMs?: number; commitIntervalMs?: number }
+  opts?: { targetRate?: number; frameMs?: number; commitIntervalMs?: number; onLevel?: (level: number) => void }
 ): Promise<MicStreamController> {
   const targetRate = opts?.targetRate ?? 24000;
   const frameMs = opts?.frameMs ?? 40; // 40ms per send (~960 samples @ 24k)
@@ -101,6 +101,19 @@ export async function startMicStreaming(
   processor.onaudioprocess = (ev) => {
     if (!running) return;
     const input = ev.inputBuffer.getChannelData(0);
+
+    // Report microphone RMS level (0..1) to the caller if requested
+    if (opts?.onLevel) {
+      let sum = 0;
+      for (let i = 0; i < input.length; i++) {
+        const s = input[i];
+        sum += s * s;
+      }
+      const rms = Math.sqrt(sum / input.length) || 0;
+      // Slight amplification and clamp
+      const level = Math.min(1, rms * 2);
+      opts.onLevel(level);
+    }
 
     // Concatenate with leftover
     let data: Float32Array;
