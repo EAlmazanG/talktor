@@ -241,15 +241,7 @@ async def conversation_websocket(
 
         # Explicit multi-word phrases
         patterns = [
-            r"^(please\s+)?(end|stop|finish)\s+(the\s+)?(conversation|session)\b",
-            r"^(end|stop|finish)\s+now\b",
-            r"^(end|stop|finish)\s+it\b",
-            r"^(end|stop|finish)\s+this\s+(conversation|session)\b",
-            # Spanish explicit phrases (avoid farewells like adios/chao)
-            r"^(terminamos)$",
-            r"^terminar(\s+la\s+)?(conversacion|sesion)$",
-            r"^finalizar(\s+la\s+)?(conversacion|sesion)$",
-            r"^finaliza(r)?$",
+            r"^(please\s+)?(end|stop|finish)\s+(the\s+)?(conversation|session)\b"
         ]
         for pat in patterns:
             if _re.search(pat, s_norm):
