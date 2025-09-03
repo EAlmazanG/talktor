@@ -206,33 +206,40 @@ export default function PracticePage() {
         {error && <div className="text-rose-500">{error}</div>}
       </div>
 
-      {/* Controls: Reset on left, Start/End centered under the logo */}
-      <div className="w-full grid grid-cols-3 items-center">
-        <div className="flex justify-start">
+      {/* Controls: Start + End centered; Reset immediately to the right (does not affect centering) */}
+      <div className="w-full flex items-center justify-center">
+        <div className={controlsClass + " justify-center relative flex-nowrap"}>
+          <div className="inline-flex items-center gap-3 flex-nowrap">
+            <button
+              className={`px-5 py-2.5 rounded-full text-sm transition-colors ${
+                canStart
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
+                  : "bg-gray-300 text-gray-500 font-normal"
+              } disabled:cursor-not-allowed`}
+              onClick={handleStart}
+              disabled={!canStart}
+            >
+              Start Conversation
+            </button>
+            <button
+              className={`px-5 py-2.5 rounded-full text-sm transition-colors ${
+                canEnd
+                  ? "bg-rose-600 text-white hover:bg-rose-700 font-semibold"
+                  : "bg-gray-300 text-gray-500 font-normal"
+              } disabled:cursor-not-allowed`}
+              onClick={handleEnd}
+              disabled={!canEnd}
+            >
+              End Conversation
+            </button>
+          </div>
           <button
-            className="px-4 py-2 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white underline-offset-4 hover:underline transition-colors"
+            className="px-4 py-2 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white underline-offset-4 hover:underline transition-colors absolute left-full ml-3 top-1/2 -translate-y-1/2"
             onClick={reset}
           >
             Reset
           </button>
         </div>
-        <div className={controlsClass + " justify-center"}>
-          <button
-            className="px-5 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            onClick={handleStart}
-            disabled={!canStart}
-          >
-            Start Conversation
-          </button>
-          <button
-            className="px-5 py-2.5 rounded-full bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            onClick={handleEnd}
-            disabled={!canEnd}
-          >
-            End Conversation
-          </button>
-        </div>
-        <div />
       </div>
 
       {/* Centered AI message (clean, no frames) */}

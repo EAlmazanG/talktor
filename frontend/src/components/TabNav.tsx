@@ -23,8 +23,8 @@ export function TabNav() {
             <Image
               src="/assets/icons/talktor.svg"
               alt="Talktor logo"
-              width={28}
-              height={28}
+              width={40}
+              height={40}
               className="rounded-sm"
               priority
             />
