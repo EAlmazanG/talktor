@@ -14,6 +14,8 @@ export type AiAudioPlayer = {
   clear: () => void;
   close: () => Promise<void>;
   getLevel: () => number; // 0..1 RMS level of current AI playback
+  getAudioContext: () => AudioContext;
+  getOutputNode: () => AudioNode; // output node to tap (GainNode)
 };
 
 function floatToPcm16(float32: Float32Array): Int16Array {
@@ -214,6 +216,8 @@ export function createAiAudioPlayer(): AiAudioPlayer {
   };
 
   const getLevel = () => currentLevel;
+  const getAudioContext = () => audioCtx;
+  const getOutputNode = () => gain as unknown as AudioNode;
 
-  return { feedPcm16, clear, close, getLevel };
+  return { feedPcm16, clear, close, getLevel, getAudioContext, getOutputNode };
 }
