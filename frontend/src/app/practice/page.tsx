@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { endConversation, getFeedbackSummary, startConversation, type FeedbackSummaryResponse } from "@/lib/api";
+import { endConversation, getFeedbackSummary, startConversation, getUserId, type FeedbackSummaryResponse } from "@/lib/api";
 import { openRealtimeWebSocket, type RealtimeClient } from "@/lib/ws";
 import { startMicStreaming, createAiAudioPlayer, type MicStreamController, type AiAudioPlayer } from "@/lib/audio";
 import AiRadialVisualizer from "@/components/AiRadialVisualizer";
@@ -298,6 +298,7 @@ export default function PracticePage() {
           <span>Ended: {ended ? "yes" : "no"}</span>
         </div>
         <div className="font-mono opacity-70">Session: {sessionId ?? "—"}</div>
+        <div className="font-mono opacity-70">{getUserId()}</div>
         {error && <div className="text-rose-500">{error}</div>}
       </div>
 
