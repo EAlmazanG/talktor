@@ -336,7 +336,7 @@ export default function PracticePage() {
               )}
               <div>
                 <Link
-                  href={`/progress/${encodeURIComponent(sessionId || feedback.session_id)}`}
+                  href={`/learn/feedback/${encodeURIComponent(sessionId || feedback.session_id)}`}
                   className="inline-flex items-center px-4 py-2 rounded-full border text-xs font-medium hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                 >
                   View details

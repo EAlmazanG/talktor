@@ -38,7 +38,7 @@ export default function FeedbackSummaryPage() {
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-semibold">Session feedback</h1>
         <span className="font-mono text-xs px-2 py-1 rounded bg-black/5 dark:bg-white/10">{sessionId}</span>
-        <button className="ml-auto px-3 py-1.5 rounded-md border" onClick={() => router.back()}>
+        <button className="ml-auto px-3 py-1.5 rounded-md border" onClick={() => router.replace("/learn")}>
           Back
         </button>
       </div>
