@@ -9,12 +9,13 @@ export type AiRadialVisualizerProps = {
   size?: number; // canvas size in px (width=height)
   className?: string;
   level?: number; // optional AI level 0..1 to pulse central dot
+  style?: React.CSSProperties; // optional style for outer container (e.g., transitions)
 };
 
 // Radial spectrum visualizer using AudioMotion Analyzer.
 // Connects to the AI player's output node and renders a dynamic circular spectrum
 // around the center, with subtle spin for a modern 3D-like feel.
-export default function AiRadialVisualizer({ player, size = 220, className = "", level = 0 }: AiRadialVisualizerProps) {
+export default function AiRadialVisualizer({ player, size = 220, className = "", level = 0, style }: AiRadialVisualizerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const amRef = useRef<AudioMotionAnalyzer | null>(null);
 
@@ -81,7 +82,10 @@ export default function AiRadialVisualizer({ player, size = 220, className = "",
   }, [player, size]);
 
   return (
-    <div className={"relative flex items-center justify-center " + className} style={{ width: size, height: size }}>
+    <div
+      className={"relative flex items-center justify-center " + className}
+      style={{ width: size, height: size, ...(style || {}) }}
+    >
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
     </div>
   );

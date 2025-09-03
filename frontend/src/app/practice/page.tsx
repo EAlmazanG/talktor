@@ -29,7 +29,7 @@ export default function PracticePage() {
   const canEnd = useMemo(() => connected && !!sessionId && !ended, [connected, sessionId, ended]);
 
   const controlsClass = useMemo(() => {
-    const base = "flex items-center gap-3 transition-all duration-300 ease-out";
+    const base = "flex items-center gap-3 transition-all duration-1000 ease-out";
     if (connecting || connected) {
       return base + " -translate-y-2 md:-translate-y-3 mb-16 md:mb-20";
     }
@@ -216,19 +216,30 @@ export default function PracticePage() {
 
   return (
     <div className="relative min-h-[70vh] flex flex-col items-center justify-center">
-      {/* Large centered Talktor logo above controls */}
+      {/* Crossfade between logo and radial visualizer */}
       <div className="w-full flex items-center justify-center mb-8 md:mb-10">
-        {connecting || connected ? (
-          <AiRadialVisualizer player={playerRef.current} size={220} level={aiLevel} />
-        ) : (
+        <div className="relative" style={{ width: 220, height: 220 }}>
+          <AiRadialVisualizer
+            player={playerRef.current}
+            size={220}
+            level={aiLevel}
+            className={`absolute inset-0 transition-opacity ease-out ${
+              connecting || connected ? "opacity-100" : "opacity-0"
+            }`}
+            style={{ transition: "opacity 2500ms ease-out" }}
+          />
           <Image
             src="/assets/icons/talktor.png"
             alt="Talktor"
             width={200}
             height={200}
             priority
+            className={`absolute inset-0 m-auto transition-opacity ease-out ${
+              connecting || connected ? "opacity-0" : "opacity-100"
+            }`}
+            style={{ transition: "opacity 2500ms ease-out" }}
           />
-        )}
+        </div>
       </div>
 
       {/* Status panel (bottom-right, minimal) */}
@@ -246,7 +257,10 @@ export default function PracticePage() {
 
       {/* Controls: Start + End centered; Reset immediately to the right (does not affect centering) */}
       <div className="w-full flex items-center justify-center">
-        <div className={controlsClass + " justify-center relative flex-nowrap"}>
+        <div
+          className={controlsClass + " justify-center relative flex-nowrap"}
+          style={{ transitionDuration: "2000ms" }}
+        >
           <div className="inline-flex items-center gap-3 flex-nowrap">
             <button
               className={`px-5 py-2.5 rounded-full text-sm transition-colors ${
