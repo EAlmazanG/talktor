@@ -80,27 +80,9 @@ export default function AiRadialVisualizer({ player, size = 220, className = "",
     };
   }, [player, size]);
 
-  const clamped = Math.max(0, Math.min(1, level || 0));
-  const dotSize = Math.round(size * 0.36);
-  const scale = 1 + clamped * 0.25;
-  const glow = 10 + clamped * 24;
-
   return (
     <div className={"relative flex items-center justify-center " + className} style={{ width: size, height: size }}>
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
-      {/* Central dot overlay */}
-      <div
-        className="pointer-events-none absolute rounded-full"
-        style={{
-          width: dotSize,
-          height: dotSize,
-          transform: `translateZ(0) scale(${scale})`,
-          background:
-            "radial-gradient(75% 75% at 30% 30%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.35) 26%, rgba(16,185,129,1) 100%)",
-          boxShadow: `0 0 ${glow}px rgba(16,185,129,0.45), inset 0 0 ${6 + clamped * 12}px rgba(255,255,255,0.8)`,
-          transition: "transform 280ms ease, box-shadow 320ms ease",
-        }}
-      />
     </div>
   );
 }
