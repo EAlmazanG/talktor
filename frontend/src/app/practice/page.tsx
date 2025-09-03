@@ -6,7 +6,7 @@ import Image from "next/image";
 import { endConversation, getFeedbackSummary, startConversation, type FeedbackSummaryResponse } from "@/lib/api";
 import { openRealtimeWebSocket, type RealtimeClient } from "@/lib/ws";
 import { startMicStreaming, createAiAudioPlayer, type MicStreamController, type AiAudioPlayer } from "@/lib/audio";
-import VoiceDots from "@/components/VoiceDots";
+import AiRadialVisualizer from "@/components/AiRadialVisualizer";
 
 export default function PracticePage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -69,8 +69,8 @@ export default function PracticePage() {
     levelSmoothRef.current = 0;
     levelTimerRef.current = window.setInterval(() => {
       const lv = playerRef.current?.getLevel?.() ?? 0;
-      // Exponential smoothing to avoid flicker
-      levelSmoothRef.current = levelSmoothRef.current * 0.8 + lv * 0.2;
+      // Exponential smoothing to avoid flicker (slower response)
+      levelSmoothRef.current = levelSmoothRef.current * 0.9 + lv * 0.1;
       setAiLevel(levelSmoothRef.current);
     }, 33); // ~30fps
   };
@@ -219,7 +219,7 @@ export default function PracticePage() {
       {/* Large centered Talktor logo above controls */}
       <div className="w-full flex items-center justify-center mb-8 md:mb-10">
         {connecting || connected ? (
-          <VoiceDots level={aiLevel} />
+          <AiRadialVisualizer player={playerRef.current} size={220} />
         ) : (
           <Image
             src="/assets/icons/talktor.png"
