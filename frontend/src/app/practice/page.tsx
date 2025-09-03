@@ -47,14 +47,14 @@ export default function PracticePage() {
     stopTyping();
     setAiMessage("");
     let i = 0;
-    const step = 2; // fast typing: 2 chars per tick
+    const step = 1; // slightly slower typing: 1 char per tick
     typingTimerRef.current = window.setInterval(() => {
       i += step;
       setAiMessage(text.slice(0, i));
       if (i >= text.length) {
         stopTyping();
       }
-    }, 12);
+    }, 30); // ~33 chars/second
   };
 
   const stopLevelTimer = () => {
