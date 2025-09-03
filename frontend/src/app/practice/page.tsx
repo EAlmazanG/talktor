@@ -6,6 +6,7 @@ import Image from "next/image";
 import { endConversation, getFeedbackSummary, startConversation, type FeedbackSummaryResponse } from "@/lib/api";
 import { openRealtimeWebSocket, type RealtimeClient } from "@/lib/ws";
 import { startMicStreaming, createAiAudioPlayer, type MicStreamController, type AiAudioPlayer } from "@/lib/audio";
+import VoiceDots from "@/components/VoiceDots";
 
 export default function PracticePage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -20,6 +21,9 @@ export default function PracticePage() {
   const [ended, setEnded] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackSummaryResponse | null>(null);
   const typingTimerRef = useRef<number | null>(null);
+  const levelTimerRef = useRef<number | null>(null);
+  const levelSmoothRef = useRef(0);
+  const [aiLevel, setAiLevel] = useState(0);
 
   const canStart = useMemo(() => !connecting && !connected && !sessionId, [connecting, connected, sessionId]);
   const canEnd = useMemo(() => connected && !!sessionId && !ended, [connected, sessionId, ended]);
@@ -53,6 +57,24 @@ export default function PracticePage() {
     }, 12);
   };
 
+  const stopLevelTimer = () => {
+    if (levelTimerRef.current != null) {
+      window.clearInterval(levelTimerRef.current);
+      levelTimerRef.current = null;
+    }
+  };
+
+  const startLevelTimer = () => {
+    stopLevelTimer();
+    levelSmoothRef.current = 0;
+    levelTimerRef.current = window.setInterval(() => {
+      const lv = playerRef.current?.getLevel?.() ?? 0;
+      // Exponential smoothing to avoid flicker
+      levelSmoothRef.current = levelSmoothRef.current * 0.8 + lv * 0.2;
+      setAiLevel(levelSmoothRef.current);
+    }, 33); // ~30fps
+  };
+
   const reset = useCallback(() => {
     clientRef.current?.close();
     clientRef.current = null;
@@ -72,6 +94,9 @@ export default function PracticePage() {
     setEnded(false);
     setFeedback(null);
     stopTyping();
+    stopLevelTimer();
+    levelSmoothRef.current = 0;
+    setAiLevel(0);
   }, []);
 
   useEffect(() => {
@@ -84,6 +109,7 @@ export default function PracticePage() {
         void playerRef.current.close();
         playerRef.current = null;
       }
+      stopLevelTimer();
     };
   }, []);
 
@@ -102,6 +128,8 @@ export default function PracticePage() {
       } else {
         playerRef.current.clear();
       }
+      // Start polling AI playback level for visualization
+      startLevelTimer();
 
       const client = openRealtimeWebSocket(res.websocket_url, {
         onOpen: () => {
@@ -119,6 +147,7 @@ export default function PracticePage() {
           setConnected(false);
           try { micRef.current?.stop(); } catch {}
           micRef.current = null;
+          stopLevelTimer();
         },
         onError: () => setError("WebSocket error"),
         // Only show the latest completed AI message (no streaming text)
@@ -129,11 +158,15 @@ export default function PracticePage() {
         onPlaybackClear: () => {
           // Clear buffered AI audio when barge-in or end requested
           playerRef.current?.clear();
+          // Drop level immediately
+          levelSmoothRef.current = 0;
+          setAiLevel(0);
         },
         onEnded: async () => {
           setEnded(true);
           try { micRef.current?.stop(); } catch {}
           micRef.current = null;
+          stopLevelTimer();
           // Farewell message with subtle fade-up
           startTyping("See you soon!");
           // Try to fetch feedback summary if available
@@ -170,6 +203,7 @@ export default function PracticePage() {
       clientRef.current.end();
       await endConversation(sessionId);
       setEnded(true);
+      stopLevelTimer();
       // Also refetch summary after explicit end
       try {
         const summary = await getFeedbackSummary(sessionId);
@@ -184,13 +218,17 @@ export default function PracticePage() {
     <div className="relative min-h-[70vh] flex flex-col items-center justify-center">
       {/* Large centered Talktor logo above controls */}
       <div className="w-full flex items-center justify-center mb-8 md:mb-10">
-        <Image
-          src="/assets/icons/talktor.png"
-          alt="Talktor"
-          width={200}
-          height={200}
-          priority
-        />
+        {connecting || connected ? (
+          <VoiceDots level={aiLevel} />
+        ) : (
+          <Image
+            src="/assets/icons/talktor.png"
+            alt="Talktor"
+            width={200}
+            height={200}
+            priority
+          />
+        )}
       </div>
 
       {/* Status panel (bottom-right, minimal) */}

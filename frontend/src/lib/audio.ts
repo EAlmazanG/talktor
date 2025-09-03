@@ -13,6 +13,7 @@ export type AiAudioPlayer = {
   feedPcm16: (bytes: ArrayBuffer) => void; // expects PCM16 mono @ 24000 Hz
   clear: () => void;
   close: () => Promise<void>;
+  getLevel: () => number; // 0..1 RMS level of current AI playback
 };
 
 function floatToPcm16(float32: Float32Array): Int16Array {
@@ -159,6 +160,7 @@ export function createAiAudioPlayer(): AiAudioPlayer {
   // Simple FIFO queue of Float32 samples ready for playback at audioCtx.sampleRate
   let queue: Float32Array[] = [];
   let readOffset = 0; // index within the first buffer
+  let currentLevel = 0; // updated every audio callback (RMS of output)
 
   node.onaudioprocess = (ev) => {
     const out = ev.outputBuffer.getChannelData(0);
@@ -181,6 +183,16 @@ export function createAiAudioPlayer(): AiAudioPlayer {
         readOffset = 0;
       }
     }
+
+    // Compute RMS level (0..1) of the current output buffer
+    let sum = 0;
+    for (let i = 0; i < out.length; i++) {
+      const s = out[i];
+      sum += s * s;
+    }
+    const rms = Math.sqrt(sum / out.length) || 0;
+    // Slight amplification to make visualization more alive, clamp to 1
+    currentLevel = Math.min(1, rms * 1.8);
   };
 
   const feedPcm16 = (bytes: ArrayBuffer) => {
@@ -201,5 +213,7 @@ export function createAiAudioPlayer(): AiAudioPlayer {
     try { await audioCtx.close(); } catch {}
   };
 
-  return { feedPcm16, clear, close };
+  const getLevel = () => currentLevel;
+
+  return { feedPcm16, clear, close, getLevel };
 }
