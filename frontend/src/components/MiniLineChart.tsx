@@ -16,6 +16,15 @@ export interface MiniLineChartProps {
   yDomain?: [number, number]; // default [0, 10]
   className?: string; // set text color to affect stroke (uses currentColor)
   heightPx?: number; // visual height; default 140
+  showAxes?: boolean; // draw axes and tick labels; default false
+  showGrid?: boolean; // draw faint gridlines; default false
+  pointRadius?: number; // point radius; default 3
+  strokeWidth?: number; // line thickness; default 2
+  autoY?: boolean; // auto fit Y domain to data within [0,10]; default true
+  yPadding?: number; // extra padding ratio for autoY (e.g., 0.15 adds 15% margins)
+  axisMode?: "none" | "lines" | "full"; // controls axis rendering; default derived from showAxes
+  axisOpacity?: number; // opacity for axis lines; default 0.12
+  minYRange?: number; // enforce a minimum Y range to avoid a flattened look; default 0.5
 }
 
 // Utility: clamp a value to [min, max]
@@ -29,10 +38,20 @@ export default function MiniLineChart({
   yDomain = [0, 10],
   className,
   heightPx = 140,
+  showAxes = false,
+  showGrid = false,
+  pointRadius = 3,
+  strokeWidth = 2,
+  autoY = true,
+  yPadding = 0.15,
+  axisMode,
+  axisOpacity = 0.12,
+  minYRange = 0.5,
 }: MiniLineChartProps) {
   // Fixed viewBox to make the SVG scalable; CSS height controls visual size
   const vb = { w: 600, h: 200 };
-  const pad = { left: 46, right: 10, top: 10, bottom: 36 };
+  const effAxisMode = axisMode ?? (showAxes ? "full" : "none");
+  const pad = { left: effAxisMode === "full" ? 46 : 12, right: 10, top: 10, bottom: effAxisMode === "full" ? 36 : 12 };
 
   const sorted = useMemo(() => {
     const arr = (points || []).filter((p) => Number.isFinite(p.value) && p.date instanceof Date);
@@ -47,8 +66,43 @@ export default function MiniLineChart({
     return { minT, maxT: Math.max(maxT, minT + 1) };
   }, [sorted]);
 
-  const yMin = yDomain[0];
-  const yMax = yDomain[1];
+  const GLOBAL_MIN = 0;
+  const GLOBAL_MAX = 10;
+  let yMin = yDomain[0];
+  let yMax = yDomain[1];
+  if (autoY && sorted.length > 0) {
+    let dataMin = Number.POSITIVE_INFINITY;
+    let dataMax = Number.NEGATIVE_INFINITY;
+    for (const p of sorted) {
+      if (Number.isFinite(p.value)) {
+        dataMin = Math.min(dataMin, p.value);
+        dataMax = Math.max(dataMax, p.value);
+      }
+    }
+    if (!Number.isFinite(dataMin) || !Number.isFinite(dataMax)) {
+      dataMin = GLOBAL_MIN;
+      dataMax = GLOBAL_MAX;
+    }
+    let range = dataMax - dataMin;
+    if (range === 0) {
+      // Expand a bit around a flat line
+      yMin = Math.max(GLOBAL_MIN, dataMin - 1);
+      yMax = Math.min(GLOBAL_MAX, dataMax + 1);
+    } else {
+      const padAmt = range * yPadding;
+      yMin = Math.max(GLOBAL_MIN, dataMin - padAmt);
+      yMax = Math.min(GLOBAL_MAX, dataMax + padAmt);
+      if (yMax - yMin < minYRange) {
+        // Ensure a minimum range for visual clarity
+        const mid = (yMax + yMin) / 2;
+        yMin = Math.max(GLOBAL_MIN, mid - minYRange / 2);
+        yMax = Math.min(GLOBAL_MAX, mid + minYRange / 2);
+      }
+    }
+    if (yMax <= yMin) {
+      yMax = Math.min(GLOBAL_MAX, yMin + minYRange);
+    }
+  }
 
   const scaleX = (t: number) => {
     const dx = domain.maxT - domain.minT;
@@ -70,7 +124,7 @@ export default function MiniLineChart({
       d += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
     });
     return d;
-  }, [sorted]);
+  }, [sorted, yMin, yMax]);
 
   // Y ticks (labels from 10 down to 0 by 2 by default)
   const yTicks = useMemo(() => {
@@ -120,42 +174,48 @@ export default function MiniLineChart({
       <div className="w-full" style={{ height: heightPx }}>
         <svg viewBox={`0 0 ${vb.w} ${vb.h}`} preserveAspectRatio="none" className="w-full h-full">
           {/* Axes */}
-          <g className="stroke-current" opacity={0.6}>
-            {/* Y axis line */}
-            <line x1={pad.left} x2={pad.left} y1={pad.top} y2={vb.h - pad.bottom} />
-            {/* X axis line */}
-            <line x1={pad.left} x2={vb.w - pad.right} y1={vb.h - pad.bottom} y2={vb.h - pad.bottom} />
-          </g>
+          {effAxisMode !== "none" && (
+            <g className="stroke-current" opacity={axisOpacity}>
+              {/* Y axis line */}
+              <line x1={pad.left} x2={pad.left} y1={pad.top} y2={vb.h - pad.bottom} />
+              {/* X axis line */}
+              <line x1={pad.left} x2={vb.w - pad.right} y1={vb.h - pad.bottom} y2={vb.h - pad.bottom} />
+            </g>
+          )}
 
           {/* Y axis ticks and labels (10 to 0) */}
-          <g className="text-xs fill-current stroke-current">
-            {yTicks.map((t, idx) => (
-              <g key={`y-${idx}`}>
-                <line x1={pad.left - 4} x2={pad.left} y1={t.y} y2={t.y} className="stroke-current" opacity={0.6} />
-                <text x={pad.left - 6} y={t.y} textAnchor="end" dominantBaseline="middle" className="fill-current text-[10px] md:text-[11px] tabular-nums" opacity={0.8}>
-                  {t.v}
-                </text>
-                {/* Light gridline */}
-                <line x1={pad.left} x2={vb.w - pad.right} y1={t.y} y2={t.y} className="stroke-current" opacity={0.06} />
-              </g>
-            ))}
-          </g>
+          {effAxisMode === "full" && (
+            <g className="text-xs fill-current stroke-current">
+              {yTicks.map((t, idx) => (
+                <g key={`y-${idx}`}>
+                  <line x1={pad.left - 4} x2={pad.left} y1={t.y} y2={t.y} className="stroke-current" opacity={0.6} />
+                  <text x={pad.left - 6} y={t.y} textAnchor="end" dominantBaseline="middle" className="fill-current text-[10px] md:text-[11px] tabular-nums" opacity={0.8}>
+                    {t.v}
+                  </text>
+                  {/* Light gridline */}
+                  {showGrid && <line x1={pad.left} x2={vb.w - pad.right} y1={t.y} y2={t.y} className="stroke-current" opacity={0.06} />}
+                </g>
+              ))}
+            </g>
+          )}
 
           {/* X axis ticks and labels (days) */}
-          <g className="text-xs fill-current stroke-current">
-            {xTicks.map((t, idx) => (
-              <g key={`x-${idx}`}> 
-                <line x1={t.x} x2={t.x} y1={vb.h - pad.bottom} y2={vb.h - pad.bottom + 4} className="stroke-current" opacity={0.6} />
-                <text x={t.x} y={vb.h - pad.bottom + 14} textAnchor="middle" className="fill-current text-[10px] md:text-[11px] tabular-nums" opacity={0.8}>
-                  {t.label}
-                </text>
-              </g>
-            ))}
-          </g>
+          {effAxisMode === "full" && (
+            <g className="text-xs fill-current stroke-current">
+              {xTicks.map((t, idx) => (
+                <g key={`x-${idx}`}> 
+                  <line x1={t.x} x2={t.x} y1={vb.h - pad.bottom} y2={vb.h - pad.bottom + 4} className="stroke-current" opacity={0.6} />
+                  <text x={t.x} y={vb.h - pad.bottom + 14} textAnchor="middle" className="fill-current text-[10px] md:text-[11px] tabular-nums" opacity={0.8}>
+                    {t.label}
+                  </text>
+                </g>
+              ))}
+            </g>
+          )}
 
           {/* Chart path */}
           {sorted.length > 1 && (
-            <path d={pathD} className="fill-none stroke-current" strokeWidth={2} />
+            <path d={pathD} className="fill-none stroke-current" strokeWidth={strokeWidth} />
           )}
 
           {/* Draw point markers */}
@@ -164,7 +224,7 @@ export default function MiniLineChart({
               key={`pt-${i}`}
               cx={scaleX(p.date.getTime())}
               cy={scaleY(p.value)}
-              r={3}
+              r={pointRadius}
               className="fill-current"
             >
               <title>{`${p.value.toFixed(1)} on ${String(p.date.getMonth() + 1).padStart(2, "0")}-${String(p.date.getDate()).padStart(2, "0")}`}</title>
@@ -216,7 +276,7 @@ export default function MiniLineChart({
                   <circle
                     cx={scaleX(hoverPoint.date.getTime())}
                     cy={scaleY(hoverPoint.value)}
-                    r={5}
+                    r={Math.max(5, pointRadius + 2)}
                     className="fill-current"
                     opacity={0.9}
                   />

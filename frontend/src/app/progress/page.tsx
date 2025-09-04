@@ -122,11 +122,6 @@ export default function ProgressPage() {
     <div className="mx-auto w-full max-w-5xl px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Progress</h1>
-        {!loading && (
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            Sessions used: {sessions.length}
-          </div>
-        )}
       </div>
 
       {error && <div className="text-sm text-rose-600">{error}</div>}
@@ -138,18 +133,25 @@ export default function ProgressPage() {
           points={overallPoints}
           yDomain={[0, 10]}
           className="text-gray-900 dark:text-gray-100"
-          heightPx={160}
+          heightPx={300}
+          autoY={true}
+          yPadding={0}
+          minYRange={0.02}
+          strokeWidth={2}
+          pointRadius={3}
+          axisMode="lines"
+          axisOpacity={0.05}
         />
       </section>
 
       {/* Pillars: 2 per row, 3 rows */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        <MiniLineChart title="Pronunciation" points={pillarPoints.pronunciation} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={140} />
-        <MiniLineChart title="Fluency" points={pillarPoints.fluency} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={140} />
-        <MiniLineChart title="Grammar" points={pillarPoints.grammar} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={140} />
-        <MiniLineChart title="Expressions" points={pillarPoints.expressions} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={140} />
-        <MiniLineChart title="Vocabulary" points={pillarPoints.vocabulary} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={140} />
-        <MiniLineChart title="Comprehension" points={pillarPoints.comprehension} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={140} />
+        <MiniLineChart title="Pronunciation" points={pillarPoints.pronunciation} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
+        <MiniLineChart title="Fluency" points={pillarPoints.fluency} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
+        <MiniLineChart title="Grammar" points={pillarPoints.grammar} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
+        <MiniLineChart title="Expressions" points={pillarPoints.expressions} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
+        <MiniLineChart title="Vocabulary" points={pillarPoints.vocabulary} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
+        <MiniLineChart title="Comprehension" points={pillarPoints.comprehension} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
       </section>
 
       {!loading && sessions.length === 0 && (
