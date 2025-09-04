@@ -205,7 +205,7 @@ export default function ProgressPage() {
           yDomain={[0, 10]}
           xDomain={[xStart, xEnd]}
           className="text-gray-700 dark:text-gray-300"
-          heightPx={260}
+          heightPx={300}
           autoY={false}
           yPadding={0}
           minYRange={0.02}
