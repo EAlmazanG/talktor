@@ -70,9 +70,19 @@ export default function LearnPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold">Learn</h1>
-        <button className="ml-auto px-3 py-1.5 rounded-md border" onClick={fetchSessions} disabled={loading}>
+      {/* Section header: Session History */}
+      <div className="flex items-center">
+        <div className="text-[11px] md:text-xs uppercase tracking-wide text-gray-600 dark:text-gray-400">Session History</div>
+        <button
+          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          onClick={fetchSessions}
+          disabled={loading}
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.37 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
           {loading ? "Refreshing..." : "Refresh"}
         </button>
       </div>
@@ -82,9 +92,9 @@ export default function LearnPage() {
       {!data && !loading && <div className="text-sm">No sessions to display.</div>}
 
       {data && (
-        <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10 shadow-sm">
+        <div className="overflow-x-auto rounded-lg">
           <table className="w-full text-sm">
-            <thead className="bg-black/5 dark:bg-white/5 text-xs uppercase tracking-wide text-gray-600 dark:text-gray-400">
+            <thead className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
               <tr className="text-left">
                 <th className="py-2.5 pl-3 pr-2">Started</th>
                 <th className="py-2.5 pr-2">Duration</th>
@@ -100,7 +110,7 @@ export default function LearnPage() {
                   return tb - ta; // latest first
                 })
                 .map((s) => (
-                <tr key={s.session.session_id} className="border-t border-black/5 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5">
+                <tr key={s.session.session_id} className="hover:bg-black/5 dark:hover:bg-white/5">
                   <td className="py-2.5 pl-3 pr-2 whitespace-nowrap">{formatDateShort(s.session.started_at)}</td>
                   <td className="py-2.5 pr-2">{formatDuration(s.session.duration_seconds)}</td>
                   <td className="py-2.5 pr-2">
@@ -109,10 +119,14 @@ export default function LearnPage() {
                   <td className="py-2.5 pr-3 text-right">
                     {s.has_feedback ? (
                       <Link
-                        className="inline-flex items-center px-3 py-1.5 rounded-full border text-xs hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                         href={`/learn/feedback/${encodeURIComponent(s.session.session_id)}`}
                       >
-                        View summary
+                        View details
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14" />
+                          <path d="m13 5 7 7-7 7" />
+                        </svg>
                       </Link>
                     ) : (
                       <span className="text-xs text-gray-500 dark:text-gray-400">—</span>
