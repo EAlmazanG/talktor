@@ -252,12 +252,6 @@ Primary modes include free-topic, review of previous topics/homework, situationa
 
 ## 14. Acceptance Criteria (MVP v0.1)
 - Start and end a realtime (or text) session with an AI tutor successfully.
-- Show real‑time transcript, elapsed time, token and context estimates.
 - Persist session (metadata), transcript, and structured feedback.
 - Display post‑session summary, errors, corrected phrases, vocabulary, and pillar scores.
 - Provide a minimal history list with access to past session details and a notes field.
-
-## 15. References
-- Architecture notes and revisions (external):
-  - https://chatgpt.com/c/686662cb-70a0-8010-987a-c9d41487bdcc (PRD and Architecture design)
-  - https://chatgpt.com/c/687563b0-f174-8010-9011-eca72c3128e0 (Revision)
