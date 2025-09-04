@@ -4,7 +4,7 @@ Purpose: This document provides a concise, standardized overview of the reposito
 
 - Tech stack: FastAPI, PostgreSQL, SQLAlchemy, OpenAI (Realtime + GPT-4o), Async Python
 - Core capabilities: Real-time voice conversations, transcript storage, structured feedback across 6 pillars, homework/vocabulary generation, centralized logging
-- Key docs: `docs/CONTEXT_REPOSITORY.md` (this file), `docs/ARCHITECTURE.md`, `docs/API.md`
+- Key docs: `docs/CONTEXT_REPOSITORY.md` (this file), `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/FRONTEND.md`
 
 ## Repository Layout
 
@@ -17,12 +17,13 @@ Root
 ├── docker-compose.yml           # Production Docker stack
 ├── docker-compose.dev.yml       # Development DB/pgAdmin stack
 ├── docs/                        # Documentation
-│   ├── CONTEXT_REPOSITORY.md    # Repository context (EN, canonical)
-│   ├── CONTEXT_REPOSITORY.es.md # Repository context (ES, legacy)
+│   ├── CONTEXT_REPOSITORY.md    # Repository context (canonical)
+│   ├── PRD.md                   # Product Requirements Document
 │   ├── ARCHITECTURE.md          # Backend architecture
-│   └── API.md                   # API reference (v1)
+│   ├── API.md                   # API reference (v1)
+│   └── FRONTEND.md              # Frontend architecture and pages
 ├── backend/                     # Backend code
-├── frontend/                    # Frontend (placeholder)
+├── frontend/                    # Frontend (Next.js app; decoupled via REST/WebSocket)
 ├── scripts/                     # Scripts
 │   ├── dev/                     # Developer utilities
 │   │   ├── view_logs.py

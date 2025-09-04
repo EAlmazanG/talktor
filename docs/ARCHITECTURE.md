@@ -110,13 +110,6 @@ await agent.stop_conversation()
 - Realtime pipeline integrates barge-in handling (speech_started → response.cancel + playback.clear), upstream/downstream event bridging, and clean finalization hooks.
 - Structured logging with dual output and centralized logs/ directory.
 
-## Next Steps
-
-- Implement full feedback generation in POST /api/v1/feedback/{session_id}/generate using StandardAgent and PersistenceService.
-- Frontend integration to consume REST and WebSocket APIs.
-- Additional polish for real-time voice client (reconnection/backpressure).
-- Authentication and user management (as needed).
-
 ## Error Handling
 
 The architecture includes comprehensive error handling:
