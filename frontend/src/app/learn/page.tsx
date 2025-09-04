@@ -4,6 +4,48 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { getUserSessions, type UserSessionsResponse } from "@/lib/api";
 
+function formatDateShort(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
+function formatDuration(seconds?: number | null): string {
+  if (seconds == null || isNaN(seconds as any)) return "—";
+  const s = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${sec}s`;
+  return `${sec}s`;
+}
+
+function FeedbackBadge({ has, score }: { has: boolean; score?: number | null }) {
+  if (!has) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] md:text-xs bg-gray-200/60 dark:bg-white/10 text-gray-700 dark:text-gray-300">
+        <span className="h-1.5 w-1.5 rounded-full bg-gray-400/80" />
+        No feedback
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] md:text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 6L9 17l-5-5" />
+      </svg>
+      Feedback{typeof score === "number" ? ` • ${score}` : ""}
+    </span>
+  );
+}
+
 export default function LearnPage() {
   const [data, setData] = useState<UserSessionsResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -40,43 +82,41 @@ export default function LearnPage() {
       {!data && !loading && <div className="text-sm">No sessions to display.</div>}
 
       {data && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="text-left border-b">
-                <th className="py-2 pr-2">Session</th>
-                <th className="py-2 pr-2">Started</th>
-                <th className="py-2 pr-2">Ended</th>
-                <th className="py-2 pr-2">Duration</th>
-                <th className="py-2 pr-2">Messages</th>
-                <th className="py-2 pr-2">Feedback</th>
-                <th className="py-2 pr-2">Actions</th>
+        <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/10 shadow-sm">
+          <table className="w-full text-sm">
+            <thead className="bg-black/5 dark:bg-white/5 text-xs uppercase tracking-wide text-gray-600 dark:text-gray-400">
+              <tr className="text-left">
+                <th className="py-2.5 pl-3 pr-2">Started</th>
+                <th className="py-2.5 pr-2">Duration</th>
+                <th className="py-2.5 pr-2">Feedback</th>
+                <th className="py-2.5 pr-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {data.sessions.map((s) => (
-                <tr key={s.session.session_id} className="border-b hover:bg-black/5 dark:hover:bg-white/5">
-                  <td className="py-2 pr-2 font-mono text-xs">{s.session.session_id}</td>
-                  <td className="py-2 pr-2">{s.session.started_at || "—"}</td>
-                  <td className="py-2 pr-2">{s.session.ended_at || "—"}</td>
-                  <td className="py-2 pr-2">{s.session.duration_seconds ?? "—"}s</td>
-                  <td className="py-2 pr-2">{s.message_count ?? "—"}</td>
-                  <td className="py-2 pr-2">
-                    {s.has_feedback ? (
-                      <span className="text-emerald-600">yes</span>
-                    ) : (
-                      <span className="text-amber-600">no</span>
-                    )}
+              {[...data.sessions]
+                .sort((a, b) => {
+                  const ta = new Date(a.session.started_at || 0).getTime();
+                  const tb = new Date(b.session.started_at || 0).getTime();
+                  return tb - ta; // latest first
+                })
+                .map((s) => (
+                <tr key={s.session.session_id} className="border-t border-black/5 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5">
+                  <td className="py-2.5 pl-3 pr-2 whitespace-nowrap">{formatDateShort(s.session.started_at)}</td>
+                  <td className="py-2.5 pr-2">{formatDuration(s.session.duration_seconds)}</td>
+                  <td className="py-2.5 pr-2">
+                    <FeedbackBadge has={!!s.has_feedback} score={s.feedback_score} />
                   </td>
-                  <td className="py-2 pr-2">
-                    <div className="flex gap-2">
+                  <td className="py-2.5 pr-3 text-right">
+                    {s.has_feedback ? (
                       <Link
-                        className="px-3 py-1 rounded-md border text-xs"
+                        className="inline-flex items-center px-3 py-1.5 rounded-full border text-xs hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                         href={`/learn/feedback/${encodeURIComponent(s.session.session_id)}`}
                       >
                         View summary
                       </Link>
-                    </div>
+                    ) : (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
