@@ -18,6 +18,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "$REPO_ROOT"
 
+#################################
+# Ensure .env exists (first run) #
+#################################
+if [ ! -f .env ]; then
+  if [ -f .env.example ]; then
+    cp .env.example .env
+    echo -e "${YELLOW}Created .env from .env.example. Set your OPENAI_API_KEY in .env for AI features.${NC}"
+  else
+    echo -e "${RED}Missing .env and .env.example. Create .env with database and OpenAI settings.${NC}"
+    exit 1
+  fi
+fi
+set -a
+source .env
+set +a
+if [ -z "$OPENAI_API_KEY" ] || [[ "$OPENAI_API_KEY" == "your_openai_api_key_here" ]]; then
+  echo -e "${YELLOW}Warning: OPENAI_API_KEY is not set or is a placeholder. AI features will be disabled until you set it.${NC}"
+fi
+
 ############################
 # Ensure Docker is running #
 ############################
@@ -134,6 +153,9 @@ if [ -z "$PORT3000_PID" ]; then
   echo -e "${GREEN}Port 3000 is free. Starting frontend dev container...${NC}"
   $DOCKER_COMPOSE -f docker-compose.dev.yml up -d frontend
   echo -e "${GREEN}Frontend available at http://localhost:3000${NC}"
+  if command -v open >/dev/null 2>&1; then
+    open "http://localhost:3000" || true
+  fi
 else
   echo -e "${YELLOW}Port 3000 is in use (PID $PORT3000_PID). Skipping frontend container start.${NC}"
 fi

@@ -14,14 +14,40 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "$REPO_ROOT"
 
-# Stop all services
-echo -e "${YELLOW}Stopping all services...${NC}"
-docker-compose -f docker-compose.yml down
-
-# Check if all containers are stopped
-if [ "$(docker ps -q -f name=talktor)" ]; then
-    echo -e "${RED}Warning: Some containers are still running. Forcing stop...${NC}"
-    docker-compose -f docker-compose.yml down --remove-orphans
+############################
+# Detect docker compose CLI #
+############################
+if docker compose version >/dev/null 2>&1; then
+  DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  DOCKER_COMPOSE="docker-compose"
 else
+  echo -e "${RED}Neither 'docker compose' nor 'docker-compose' is available.${NC}"
+  exit 1
+fi
+
+# Stop all services (optionally purge volumes)
+PURGE=0
+if [ "$1" == "--purge" ] || [ "$1" == "-p" ]; then
+  PURGE=1
+fi
+
+echo -e "${YELLOW}Stopping all services...${NC}"
+if [ $PURGE -eq 1 ]; then
+  echo -e "${YELLOW}Purging volumes for a full reset...${NC}"
+  $DOCKER_COMPOSE -f docker-compose.yml down --remove-orphans -v
+else
+  $DOCKER_COMPOSE -f docker-compose.yml down --remove-orphans
+fi
+
+# Verify containers are stopped
+RUNNING_CONTAINERS=$(docker ps -q --filter "name=talktor")
+if [ -n "$RUNNING_CONTAINERS" ]; then
+  echo -e "${RED}Some containers still running: ${RUNNING_CONTAINERS}. You may need to stop them manually.${NC}"
+else
+  if [ $PURGE -eq 1 ]; then
+    echo -e "${GREEN}All services stopped and volumes removed. Next start will be a clean install.${NC}"
+  else
     echo -e "${GREEN}All services stopped successfully${NC}"
+  fi
 fi
