@@ -41,6 +41,8 @@ export default function ProgressPage() {
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<UserSessionsResponse["sessions"]>([]);
   const [summaries, setSummaries] = useState<Record<string, FeedbackSummaryResponse>>({});
+  // Day range filter for all charts (default: last 14 days)
+  const [rangeDays, setRangeDays] = useState(14);
 
   // Load sessions and summaries (reusable so we can wire a Refresh button)
   const fetchProgress = async (isMounted?: () => boolean) => {
@@ -139,8 +141,8 @@ export default function ProgressPage() {
     return { overallPoints: overall, pillarPoints: pillars };
   }, [sessions, summaries]);
 
-  // Default visible window: last 14 days including today (local time)
-  const [xStart, xEnd] = lastNDaysDomain(14);
+  // Visible window: last N days including today (local time)
+  const [xStart, xEnd] = useMemo(() => lastNDaysDomain(rangeDays), [rangeDays]);
   const inWindow = (p: ChartPoint) => {
     const t = p.date.getTime();
     return t >= xStart.getTime() && t <= xEnd.getTime();
@@ -157,23 +159,40 @@ export default function ProgressPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 space-y-6">
-      <div className="flex items-center">
+      <div className="flex items-center mb-3 md:mb-4">
         <div className="inline-flex items-center gap-2 rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-1 text-[11px] md:text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-200">
           <span className="h-1.5 w-1.5 rounded-full bg-gray-500/60 dark:bg-gray-300/60" />
           <span>Overall</span>
         </div>
-        <button
-          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-          onClick={() => fetchProgress()}
-          disabled={loading}
-        >
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.37 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
+        {/* Right-justified filters + Refresh */}
+        <div className="ml-auto inline-flex items-center">
+          <div className="inline-flex items-center gap-1">
+            {[7, 14, 30].map((d) => (
+              <button
+                key={d}
+                className={`px-2.5 py-1 rounded-full text-[11px] md:text-xs border border-black/10 dark:border-white/10 transition-colors ${
+                  rangeDays === d ? "bg-black/10 dark:bg-white/10" : "hover:bg-black/5 dark:hover:bg-white/10"
+                }`}
+                aria-pressed={rangeDays === d}
+                onClick={() => setRangeDays(d)}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+          <button
+            className="ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            onClick={() => fetchProgress()}
+            disabled={loading}
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.37 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {error && <div className="text-sm text-rose-600">{error}</div>}
@@ -186,28 +205,29 @@ export default function ProgressPage() {
           yDomain={[0, 10]}
           xDomain={[xStart, xEnd]}
           className="text-gray-700 dark:text-gray-300"
-          heightPx={240}
+          heightPx={260}
           autoY={false}
           yPadding={0}
           minYRange={0.02}
           axisMode="labels"
           axisOpacity={0.05}
+          paddingOverrides={{ left: 44, right: 44 }}
         />
       </section>
 
-      <div className="inline-flex items-center gap-2 rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-1 text-[11px] md:text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-200">
+      <div className="inline-flex items-center gap-2 rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-1 text-[11px] md:text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-200 mb-2 md:mb-3">
         <span className="h-1.5 w-1.5 rounded-full bg-gray-500/60 dark:bg-gray-300/60" />
         <span>Pillars</span>
       </div>
 
       {/* Pillars: 2 per row, 3 rows */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        <MiniLineChart title="Pronunciation" points={pillarsWindow.pronunciation} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Fluency" points={pillarsWindow.fluency} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Grammar" points={pillarsWindow.grammar} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Expressions" points={pillarsWindow.expressions} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Vocabulary" points={pillarsWindow.vocabulary} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Comprehension" points={pillarsWindow.comprehension} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Pronunciation" points={pillarsWindow.pronunciation} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Fluency" points={pillarsWindow.fluency} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Grammar" points={pillarsWindow.grammar} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Expressions" points={pillarsWindow.expressions} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Vocabulary" points={pillarsWindow.vocabulary} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Comprehension" points={pillarsWindow.comprehension} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
       </section>
 
       {!loading && sessions.length === 0 && (

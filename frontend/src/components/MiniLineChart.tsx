@@ -26,6 +26,7 @@ export interface MiniLineChartProps {
   axisMode?: "none" | "lines" | "labels" | "full"; // controls axis rendering; default derived from showAxes
   axisOpacity?: number; // opacity for axis lines; default 0.12
   minYRange?: number; // enforce a minimum Y range to avoid a flattened look; default 0.5
+  paddingOverrides?: Partial<{ left: number; right: number; top: number; bottom: number }>; // customize internal paddings
 }
 
 // Utility: clamp a value to [min, max]
@@ -49,13 +50,15 @@ export default function MiniLineChart({
   axisMode,
   axisOpacity = 0.12,
   minYRange = 0.5,
+  paddingOverrides,
 }: MiniLineChartProps) {
   // Fixed viewBox to make the SVG scalable; CSS height controls visual size
   const vb = { w: 600, h: 200 };
   const effAxisMode = axisMode ?? (showAxes ? "full" : "none");
   const hasLabels = effAxisMode === "full" || effAxisMode === "labels";
   // Generous and balanced padding on all sides to avoid clipping and achieve visual centering
-  const pad = { left: hasLabels ? 52 : 14, right: hasLabels ? 52 : 12, top: 16, bottom: hasLabels ? 44 : 12 };
+  const basePad = { left: hasLabels ? 52 : 14, right: hasLabels ? 52 : 12, top: 16, bottom: hasLabels ? 44 : 12 };
+  const pad = { ...basePad, ...(paddingOverrides || {}) };
 
   const sorted = useMemo(() => {
     const arr = (points || []).filter((p) => Number.isFinite(p.value) && p.date instanceof Date);
@@ -211,7 +214,7 @@ export default function MiniLineChart({
   return (
     <div className={`rounded-lg border border-black/10 dark:border-white/10 p-4 ${className || ""}`}>
       {title && (
-        <div className="text-[11px] md:text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
+        <div className="text-[11px] md:text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-4 md:mb-5 font-semibold">
           {title}
         </div>
       )}
@@ -235,7 +238,7 @@ export default function MiniLineChart({
                   {effAxisMode === "full" && (
                     <line x1={pad.left - 4} x2={pad.left} y1={t.y} y2={t.y} className="stroke-current" opacity={0.6} vectorEffect="non-scaling-stroke" />
                   )}
-                  <text x={pad.left - 6} y={t.y} textAnchor="end" dominantBaseline="middle" className="fill-current font-normal text-[9px] md:text-[10px] tabular-nums" opacity={0.5}>
+                  <text x={pad.left - 6} y={t.y} textAnchor="end" dominantBaseline="middle" className="fill-current font-extralight text-[7px] md:text-[9px] tabular-nums" opacity={0.42}>
                     {t.v}
                   </text>
                   {/* Light gridline */}
@@ -259,8 +262,8 @@ export default function MiniLineChart({
                     x={t.x}
                     y={vb.h - pad.bottom + 18}
                     textAnchor={idx === 0 ? "start" : idx === xTicks.length - 1 ? "end" : "middle"}
-                    className="fill-current font-normal text-[8px] md:text-[10px] tabular-nums"
-                    opacity={0.5}
+                    className="fill-current font-extralight text-[7px] md:text-[9px] tabular-nums"
+                    opacity={0.42}
                     dx={idx === 0 ? 4 : idx === xTicks.length - 1 ? -4 : 0}
                   >
                     {t.label}
