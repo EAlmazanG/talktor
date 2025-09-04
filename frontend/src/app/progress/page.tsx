@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import MiniLineChart, { type ChartPoint } from "@/components/MiniLineChart";
-import { getUserSessions, getFeedbackSummary, type UserSessionsResponse, type FeedbackSummaryResponse } from "@/lib/api";
+import { getAllUserSessions, getFeedbackSummary, type UserSessionsResponse, type FeedbackSummaryResponse } from "@/lib/api";
 
 type PillarKey = "pronunciation" | "fluency" | "grammar" | "expressions" | "vocabulary" | "comprehension";
 
@@ -31,8 +31,8 @@ export default function ProgressPage() {
       setLoading(true);
       setError(null);
       try {
-        // 1) Fetch sessions
-        const res = await getUserSessions();
+        // 1) Fetch sessions (all pages)
+        const res = await getAllUserSessions();
         if (!mounted) return;
         const filtered = (res.sessions || []).filter((row) => {
           const dur = row.session?.duration_seconds || 0;

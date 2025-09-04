@@ -122,7 +122,32 @@ export function getFeedback(sessionId: string) {
   return apiGet<FeedbackResponse>(`/api/v1/feedback/${sessionId}`);
 }
 
-export function getUserSessions(userId?: string) {
+export function getUserSessions(userId?: string, opts?: { page?: number; pageSize?: number }) {
   const uid = userId || getUserId();
-  return apiGet<UserSessionsResponse>(`/api/v1/users/${encodeURIComponent(uid)}/sessions`);
+  const params = new URLSearchParams();
+  if (opts?.page != null) params.set("page", String(opts.page));
+  if (opts?.pageSize != null) params.set("page_size", String(opts.pageSize));
+  const qs = params.toString();
+  return apiGet<UserSessionsResponse>(`/api/v1/users/${encodeURIComponent(uid)}/sessions${qs ? `?${qs}` : ""}`);
+}
+
+export async function getAllUserSessions(userId?: string, pageSize = 100): Promise<UserSessionsResponse> {
+  const uid = userId || getUserId();
+  let page = 1;
+  let total = 0;
+  const all: UserSessionsResponse["sessions"] = [];
+  while (true) {
+    const res = await getUserSessions(uid, { page, pageSize });
+    total = res.total;
+    const batch = res.sessions || [];
+    all.push(...batch);
+    if (all.length >= total || batch.length < pageSize) break;
+    page += 1;
+  }
+  return {
+    sessions: all,
+    total,
+    page: 1,
+    page_size: all.length,
+  };
 }

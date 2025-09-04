@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { getUserSessions, type UserSessionsResponse } from "@/lib/api";
+import { getAllUserSessions, type UserSessionsResponse } from "@/lib/api";
 
 function formatDateShort(iso?: string | null): string {
   if (!iso) return "—";
@@ -57,7 +57,7 @@ export default function LearnPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await getUserSessions();
+      const res = await getAllUserSessions();
       setData(res);
     } catch (e: any) {
       setError(e?.message || "Failed to load sessions");
