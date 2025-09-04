@@ -211,6 +211,9 @@ export default function ProgressPage() {
           minYRange={0.02}
           axisMode="labels"
           axisOpacity={0.05}
+          axisLabelOpacity={0.32}
+          axisLabelWeightClass="font-thin"
+          axisLabelSizeClass="text-[6px] md:text-[8px]"
           paddingOverrides={{ left: 44, right: 44 }}
         />
       </section>
@@ -222,12 +225,12 @@ export default function ProgressPage() {
 
       {/* Pillars: 2 per row, 3 rows */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        <MiniLineChart title="Pronunciation" points={pillarsWindow.pronunciation} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Fluency" points={pillarsWindow.fluency} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Grammar" points={pillarsWindow.grammar} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Expressions" points={pillarsWindow.expressions} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Vocabulary" points={pillarsWindow.vocabulary} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
-        <MiniLineChart title="Comprehension" points={pillarsWindow.comprehension} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Pronunciation" points={pillarsWindow.pronunciation} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} axisLabelSizeClass="text-[8px] md:text-[10px]" />
+        <MiniLineChart title="Fluency" points={pillarsWindow.fluency} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} axisLabelSizeClass="text-[8px] md:text-[10px]" />
+        <MiniLineChart title="Grammar" points={pillarsWindow.grammar} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} axisLabelSizeClass="text-[8px] md:text-[10px]" />
+        <MiniLineChart title="Expressions" points={pillarsWindow.expressions} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} axisLabelSizeClass="text-[8px] md:text-[10px]" />
+        <MiniLineChart title="Vocabulary" points={pillarsWindow.vocabulary} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} axisLabelSizeClass="text-[8px] md:text-[10px]" />
+        <MiniLineChart title="Comprehension" points={pillarsWindow.comprehension} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={150} autoY={false} axisMode="labels" axisOpacity={0.08} axisLabelSizeClass="text-[8px] md:text-[10px]" />
       </section>
 
       {!loading && sessions.length === 0 && (

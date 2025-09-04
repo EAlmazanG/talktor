@@ -25,6 +25,9 @@ export interface MiniLineChartProps {
   yPadding?: number; // extra padding ratio for autoY (e.g., 0.15 adds 15% margins)
   axisMode?: "none" | "lines" | "labels" | "full"; // controls axis rendering; default derived from showAxes
   axisOpacity?: number; // opacity for axis lines; default 0.12
+  axisLabelWeightClass?: string; // override font weight for axis labels, e.g., 'font-thin'
+  axisLabelOpacity?: number; // opacity for axis label text; default 0.42
+  axisLabelSizeClass?: string; // tailwind size classes for axis labels; default 'text-[7px] md:text-[9px]'
   minYRange?: number; // enforce a minimum Y range to avoid a flattened look; default 0.5
   paddingOverrides?: Partial<{ left: number; right: number; top: number; bottom: number }>; // customize internal paddings
 }
@@ -49,6 +52,9 @@ export default function MiniLineChart({
   yPadding = 0.15,
   axisMode,
   axisOpacity = 0.12,
+  axisLabelWeightClass,
+  axisLabelOpacity = 0.42,
+  axisLabelSizeClass,
   minYRange = 0.5,
   paddingOverrides,
 }: MiniLineChartProps) {
@@ -59,6 +65,8 @@ export default function MiniLineChart({
   // Generous and balanced padding on all sides to avoid clipping and achieve visual centering
   const basePad = { left: hasLabels ? 52 : 14, right: hasLabels ? 52 : 12, top: 16, bottom: hasLabels ? 44 : 12 };
   const pad = { ...basePad, ...(paddingOverrides || {}) };
+  const labelWeight = axisLabelWeightClass ?? "font-extralight";
+  const labelSize = axisLabelSizeClass ?? "text-[7px] md:text-[9px]";
 
   const sorted = useMemo(() => {
     const arr = (points || []).filter((p) => Number.isFinite(p.value) && p.date instanceof Date);
@@ -238,7 +246,7 @@ export default function MiniLineChart({
                   {effAxisMode === "full" && (
                     <line x1={pad.left - 4} x2={pad.left} y1={t.y} y2={t.y} className="stroke-current" opacity={0.6} vectorEffect="non-scaling-stroke" />
                   )}
-                  <text x={pad.left - 6} y={t.y} textAnchor="end" dominantBaseline="middle" className="fill-current font-extralight text-[7px] md:text-[9px] tabular-nums" opacity={0.42}>
+                  <text x={pad.left - 6} y={t.y} textAnchor="end" dominantBaseline="middle" className={`fill-current ${labelWeight} ${labelSize} tabular-nums`} opacity={axisLabelOpacity}>
                     {t.v}
                   </text>
                   {/* Light gridline */}
@@ -262,8 +270,8 @@ export default function MiniLineChart({
                     x={t.x}
                     y={vb.h - pad.bottom + 18}
                     textAnchor={idx === 0 ? "start" : idx === xTicks.length - 1 ? "end" : "middle"}
-                    className="fill-current font-extralight text-[7px] md:text-[9px] tabular-nums"
-                    opacity={0.42}
+                    className={`fill-current ${labelWeight} ${labelSize} tabular-nums`}
+                    opacity={axisLabelOpacity}
                     dx={idx === 0 ? 4 : idx === xTicks.length - 1 ? -4 : 0}
                   >
                     {t.label}
