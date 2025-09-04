@@ -65,7 +65,7 @@ function ColoredListBlock({ variant, title, items }: { variant: "errors" | "sugg
       ? "bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-800 dark:text-rose-200"
       : "bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-200";
   return (
-    <div className={`h-full rounded-lg px-3 py-2 ${base}`}>
+    <div className={`h-full rounded-lg px-3 py-2 ${base} overflow-auto`}>
       <div className="text-[11px] md:text-xs font-semibold uppercase tracking-wide mb-1">{title}</div>
       <ul className="list-disc pl-5 text-sm leading-relaxed space-y-1.5 marker:text-current break-words text-pretty">
         {items.map((it, idx) => (
@@ -117,10 +117,10 @@ function PillarCard({ name, data }: { name: string; data: PillarFeedback }) {
         <div className="text-sm uppercase tracking-wide font-semibold text-gray-800 dark:text-gray-100">{label}</div>
         {data?.score != null && <MiniScoreBadge score={data.score} />}
       </div>
-      {data?.summary && (
-        <div className="text-sm leading-relaxed text-gray-800 dark:text-gray-200 break-words text-pretty whitespace-pre-wrap">{data.summary}</div>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5 items-stretch">
+      <div className="text-sm leading-relaxed text-gray-800 dark:text-gray-200 break-words text-pretty whitespace-pre-wrap sm:h-24 md:h-28 overflow-auto pr-1">
+        {data?.summary}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5 items-stretch sm:h-28 md:h-32">
         <ColoredListBlock variant="errors" title="Errors" items={data?.errors} />
         <ColoredListBlock variant="suggestions" title="Suggestions" items={data?.suggestions} />
       </div>
@@ -145,7 +145,7 @@ export default function FeedbackDetails({ feedback }: { feedback: FeedbackRespon
       {/* General summary and assessment */}
       {(feedback.general_summary || feedback.general_feedback) && (
         <div className="space-y-4">
-          <div className="flex items-start gap-4 overflow-hidden">
+          <div className="flex items-start gap-4">
             <div className="shrink-0">
               <ScoreBadge score={feedback.overall_score} />
             </div>
@@ -153,13 +153,13 @@ export default function FeedbackDetails({ feedback }: { feedback: FeedbackRespon
               {feedback.general_summary && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Summary</div>
-                  <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{feedback.general_summary}</div>
+                  <div className="text-[15px] md:text-base leading-relaxed text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{feedback.general_summary}</div>
                 </div>
               )}
               {feedback.general_feedback && (
                 <div>
                   <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Assessment</div>
-                  <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{feedback.general_feedback}</div>
+                  <div className="text-[15px] md:text-base leading-relaxed text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{feedback.general_feedback}</div>
                 </div>
               )}
             </div>
