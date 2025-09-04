@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Talktor",
   description: "English practice with realtime conversations and feedback",
+  icons: {
+    icon: "/assets/icons/talktor.svg",
+    apple: "/assets/icons/talktor.png",
+  },
 };
 
 export default function RootLayout({
