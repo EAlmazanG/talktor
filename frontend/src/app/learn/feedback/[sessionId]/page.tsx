@@ -37,9 +37,23 @@ export default function FeedbackSummaryPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold">Session feedback</h1>
-        <button className="ml-auto px-3 py-1.5 rounded-md border" onClick={() => router.replace("/learn")}>
-          Back
+        <button
+          className="ml-auto inline-flex items-center gap-2 rounded-lg border border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 text-sm text-gray-800 dark:text-gray-100"
+          onClick={() => router.replace("/learn")}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+            aria-hidden
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          <span>Back</span>
         </button>
       </div>
 
