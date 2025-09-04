@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
-import { endConversation, getFeedbackSummary, startConversation, getUserId, type FeedbackSummaryResponse } from "@/lib/api";
+import { endConversation, getFeedbackSummary, getFeedback, startConversation, getUserId, type FeedbackSummaryResponse, type FeedbackResponse } from "@/lib/api";
 import { openRealtimeWebSocket, type RealtimeClient } from "@/lib/ws";
 import { startMicStreaming, createAiAudioPlayer, type MicStreamController, type AiAudioPlayer } from "@/lib/audio";
 import AiRadialVisualizer from "@/components/AiRadialVisualizer";
+import FeedbackDetails from "@/components/FeedbackDetails";
 
 export default function PracticePage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -20,6 +20,10 @@ export default function PracticePage() {
   const playerRef = useRef<AiAudioPlayer | null>(null);
   const [ended, setEnded] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackSummaryResponse | null>(null);
+  const [fullFeedback, setFullFeedback] = useState<FeedbackResponse | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
   const typingTimerRef = useRef<number | null>(null);
   const levelTimerRef = useRef<number | null>(null);
   const levelSmoothRef = useRef(0);
@@ -128,6 +132,10 @@ export default function PracticePage() {
     setAiMessage("");
     setEnded(false);
     setFeedback(null);
+    setFullFeedback(null);
+    setDetailsOpen(false);
+    setDetailsLoading(false);
+    setDetailsError(null);
     stopTyping();
     stopLevelTimer();
     levelSmoothRef.current = 0;
@@ -219,6 +227,10 @@ export default function PracticePage() {
             const sid = res.session_id;
             const summary = await getFeedbackSummary(sid);
             setFeedback(summary || null);
+            setFullFeedback(null);
+            setDetailsOpen(false);
+            setDetailsLoading(false);
+            setDetailsError(null);
           } catch (_) {
             // ignore
           }
@@ -354,10 +366,13 @@ export default function PracticePage() {
         </div>
       </div>
 
-      {/* Feedback after end (clean, spaced, includes scores) */}
+      {/* Feedback after end (clean, spaced, includes scores and inline details) */}
       {ended && (
         <div className="mt-10 w-full max-w-3xl px-4 space-y-4">
-          <div className="text-[11px] md:text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Feedback</div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-1 text-[11px] md:text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-gray-500/60 dark:bg-gray-300/60" />
+            <span>Feedback</span>
+          </div>
           {feedback ? (
             <>
               <div className="text-base font-light whitespace-pre-wrap text-gray-900 dark:text-gray-100">
@@ -382,14 +397,41 @@ export default function PracticePage() {
                   )}
                 </div>
               )}
-              <div>
-                <Link
-                  href={`/learn/feedback/${encodeURIComponent(sessionId || feedback.session_id)}`}
-                  className="inline-flex items-center px-4 py-2 rounded-full border text-xs font-medium hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              <div className="flex justify-center">
+                <button
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-black/10 dark:border-white/10 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  onClick={async () => {
+                    const opening = !detailsOpen;
+                    setDetailsOpen(opening);
+                    if (opening && !fullFeedback) {
+                      const sid = sessionId || (feedback as any)?.session_id;
+                      if (!sid) return;
+                      setDetailsLoading(true);
+                      setDetailsError(null);
+                      try {
+                        const res = await getFeedback(sid);
+                        setFullFeedback(res || null);
+                      } catch (e: any) {
+                        setDetailsError(e?.message || "Failed to load details");
+                      } finally {
+                        setDetailsLoading(false);
+                      }
+                    }
+                  }}
                 >
-                  View details
-                </Link>
+                  {detailsOpen ? "Hide details" : "Show details"}
+                </button>
               </div>
+              {detailsOpen && (
+                <div className="pt-2 space-y-2">
+                  {detailsLoading && <div className="text-sm text-gray-600 dark:text-gray-300">Loading details...</div>}
+                  {detailsError && <div className="text-sm text-rose-600">{detailsError}</div>}
+                  {fullFeedback && <FeedbackDetails feedback={fullFeedback} />}
+                  {!detailsLoading && !detailsError && !fullFeedback && (
+                    <div className="text-sm text-gray-600 dark:text-gray-300">No details available.</div>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <div className="text-sm font-light text-gray-600 dark:text-gray-300">No summary available yet.</div>

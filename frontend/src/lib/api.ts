@@ -59,6 +59,31 @@ export interface FeedbackSummaryResponse {
   created_at?: string;
 }
 
+// Detailed feedback response matching backend schemas/feedback.py
+export interface PillarFeedback {
+  score?: number;
+  summary?: string;
+  errors: string[];
+  suggestions: string[];
+}
+
+export interface FeedbackResponse {
+  session_id: string;
+  overall_score?: number;
+  general_feedback?: string;
+  general_summary?: string;
+  general_errors: string[];
+  general_suggestions: string[];
+  pronunciation: PillarFeedback;
+  fluency: PillarFeedback;
+  grammar: PillarFeedback;
+  expressions: PillarFeedback;
+  vocabulary: PillarFeedback;
+  comprehension: PillarFeedback;
+  created_at: string;
+  generated_by: string;
+}
+
 export interface UserSessionsResponse {
   sessions: Array<{
     session: {
@@ -91,6 +116,10 @@ export function endConversation(sessionId: string) {
 
 export function getFeedbackSummary(sessionId: string) {
   return apiGet<FeedbackSummaryResponse>(`/api/v1/feedback/${sessionId}/summary`);
+}
+
+export function getFeedback(sessionId: string) {
+  return apiGet<FeedbackResponse>(`/api/v1/feedback/${sessionId}`);
 }
 
 export function getUserSessions(userId?: string) {
