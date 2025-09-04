@@ -14,6 +14,7 @@ export interface MiniLineChartProps {
   title?: string;
   points: ChartPoint[];
   yDomain?: [number, number]; // default [0, 10]
+  xDomain?: [Date, Date]; // optional fixed time domain; if provided it is used for scaling and ticks
   className?: string; // set text color to affect stroke (uses currentColor)
   heightPx?: number; // visual height; default 140
   showAxes?: boolean; // draw axes and tick labels; default false
@@ -22,7 +23,7 @@ export interface MiniLineChartProps {
   strokeWidth?: number; // line thickness; default 2
   autoY?: boolean; // auto fit Y domain to data within [0,10]; default true
   yPadding?: number; // extra padding ratio for autoY (e.g., 0.15 adds 15% margins)
-  axisMode?: "none" | "lines" | "full"; // controls axis rendering; default derived from showAxes
+  axisMode?: "none" | "lines" | "labels" | "full"; // controls axis rendering; default derived from showAxes
   axisOpacity?: number; // opacity for axis lines; default 0.12
   minYRange?: number; // enforce a minimum Y range to avoid a flattened look; default 0.5
 }
@@ -36,12 +37,13 @@ export default function MiniLineChart({
   title,
   points,
   yDomain = [0, 10],
+  xDomain,
   className,
   heightPx = 140,
   showAxes = false,
   showGrid = false,
-  pointRadius = 3,
-  strokeWidth = 2,
+  pointRadius = 1.75,
+  strokeWidth = 1.25,
   autoY = true,
   yPadding = 0.15,
   axisMode,
@@ -51,7 +53,9 @@ export default function MiniLineChart({
   // Fixed viewBox to make the SVG scalable; CSS height controls visual size
   const vb = { w: 600, h: 200 };
   const effAxisMode = axisMode ?? (showAxes ? "full" : "none");
-  const pad = { left: effAxisMode === "full" ? 46 : 12, right: 10, top: 10, bottom: effAxisMode === "full" ? 36 : 12 };
+  const hasLabels = effAxisMode === "full" || effAxisMode === "labels";
+  // Generous and balanced padding on all sides to avoid clipping and achieve visual centering
+  const pad = { left: hasLabels ? 52 : 14, right: hasLabels ? 52 : 12, top: 16, bottom: hasLabels ? 44 : 12 };
 
   const sorted = useMemo(() => {
     const arr = (points || []).filter((p) => Number.isFinite(p.value) && p.date instanceof Date);
@@ -60,11 +64,16 @@ export default function MiniLineChart({
   }, [points]);
 
   const domain = useMemo(() => {
+    if (xDomain && xDomain[0] instanceof Date && xDomain[1] instanceof Date) {
+      const minT = xDomain[0].getTime();
+      const maxT = xDomain[1].getTime();
+      return { minT, maxT: Math.max(maxT, minT + 1) };
+    }
     if (sorted.length === 0) return { minT: 0, maxT: 1 };
     const minT = sorted[0].date.getTime();
     const maxT = sorted[sorted.length - 1].date.getTime();
     return { minT, maxT: Math.max(maxT, minT + 1) };
-  }, [sorted]);
+  }, [sorted, xDomain?.[0], xDomain?.[1]]);
 
   const GLOBAL_MIN = 0;
   const GLOBAL_MAX = 10;
@@ -139,33 +148,68 @@ export default function MiniLineChart({
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }
   const xTicks = useMemo(() => {
-    if (sorted.length === 0) return [] as Array<{ t: number; x: number; label: string }>;
-    const start = dayStart(sorted[0].date);
-    const end = dayStart(sorted[sorted.length - 1].date);
+    // Use the provided xDomain if available; otherwise derive from data
+    let start: Date;
+    let end: Date;
+    if (xDomain && xDomain[0] instanceof Date && xDomain[1] instanceof Date) {
+      start = dayStart(xDomain[0]);
+      end = dayStart(xDomain[1]);
+    } else {
+      if (sorted.length === 0) return [] as Array<{ t: number; x: number; label: string }>;
+      start = dayStart(sorted[0].date);
+      end = dayStart(sorted[sorted.length - 1].date);
+    }
     const oneDay = 24 * 60 * 60 * 1000;
     const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / oneDay) + 1);
-    const maxTicks = 7;
+    const maxTicks = 5;
     const stepDays = Math.max(1, Math.ceil(totalDays / maxTicks));
-    const ticks: Array<{ t: number; x: number; label: string }> = [];
+    const ticksRaw: Array<{ t: number; x: number; label: string }> = [];
     for (let i = 0; i < totalDays; i += stepDays) {
       const t = start.getTime() + i * oneDay;
+      if (t > end.getTime()) break;
       const dt = new Date(t);
       const label = `${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-      ticks.push({ t, x: scaleX(t), label });
+      ticksRaw.push({ t, x: scaleX(t), label });
     }
-    // Always include the end day label
-    if (ticks.length === 0 || ticks[ticks.length - 1].t !== end.getTime()) {
-      ticks.push({ t: end.getTime(), x: scaleX(end.getTime()), label: `${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}` });
+    // Ensure the end day label is included
+    const endT = end.getTime();
+    const endLabel = `${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+    const endTick = { t: endT, x: scaleX(endT), label: endLabel };
+    if (!ticksRaw.some((tk) => tk.t === endT)) ticksRaw.push(endTick);
+
+    // Sort and de-duplicate by time
+    ticksRaw.sort((a, b) => a.t - b.t);
+    const uniq: Array<{ t: number; x: number; label: string }> = [];
+    const seen = new Set<number>();
+    for (const tk of ticksRaw) {
+      if (seen.has(tk.t)) continue;
+      seen.add(tk.t);
+      uniq.push(tk);
     }
-    return ticks;
-  }, [sorted, domain.minT, domain.maxT]);
+
+    // Enforce a minimum gap (in viewBox units) between labels to avoid overlap; always keep the last one
+    const minGap = 48; // ~8% of viewBox width (scales with container width)
+    const spaced: Array<{ t: number; x: number; label: string }> = [];
+    for (let i = 0; i < uniq.length; i++) {
+      const tk = uniq[i];
+      if (spaced.length === 0) {
+        spaced.push(tk);
+      } else if (tk.x - spaced[spaced.length - 1].x >= minGap) {
+        spaced.push(tk);
+      } else if (i === uniq.length - 1) {
+        // Replace the previous with the end tick if too close, so the final day is visible
+        spaced[spaced.length - 1] = tk;
+      }
+    }
+    return spaced;
+  }, [sorted, domain.minT, domain.maxT, xDomain?.[0], xDomain?.[1]]);
 
   // Hover state for tooltip
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const hoverPoint = hoverIndex != null && sorted[hoverIndex] ? sorted[hoverIndex] : null;
 
   return (
-    <div className={`rounded-lg border border-black/10 dark:border-white/10 p-3 ${className || ""}`}>
+    <div className={`rounded-lg border border-black/10 dark:border-white/10 p-4 ${className || ""}`}>
       {title && (
         <div className="text-[11px] md:text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">
           {title}
@@ -173,39 +217,52 @@ export default function MiniLineChart({
       )}
       <div className="w-full" style={{ height: heightPx }}>
         <svg viewBox={`0 0 ${vb.w} ${vb.h}`} preserveAspectRatio="none" className="w-full h-full">
-          {/* Axes */}
-          {effAxisMode !== "none" && (
+          {/* Axes lines (only for 'lines' and 'full') */}
+          {(effAxisMode === "lines" || effAxisMode === "full") && (
             <g className="stroke-current" opacity={axisOpacity}>
               {/* Y axis line */}
-              <line x1={pad.left} x2={pad.left} y1={pad.top} y2={vb.h - pad.bottom} />
+              <line x1={pad.left} x2={pad.left} y1={pad.top} y2={vb.h - pad.bottom} vectorEffect="non-scaling-stroke" />
               {/* X axis line */}
-              <line x1={pad.left} x2={vb.w - pad.right} y1={vb.h - pad.bottom} y2={vb.h - pad.bottom} />
+              <line x1={pad.left} x2={vb.w - pad.right} y1={vb.h - pad.bottom} y2={vb.h - pad.bottom} vectorEffect="non-scaling-stroke" />
             </g>
           )}
 
-          {/* Y axis ticks and labels (10 to 0) */}
-          {effAxisMode === "full" && (
+          {/* Y axis tick labels (10 to 0). For 'labels', render only text; for 'full', render ticks and optional gridlines too. */}
+          {(effAxisMode === "full" || effAxisMode === "labels") && (
             <g className="text-xs fill-current stroke-current">
               {yTicks.map((t, idx) => (
                 <g key={`y-${idx}`}>
-                  <line x1={pad.left - 4} x2={pad.left} y1={t.y} y2={t.y} className="stroke-current" opacity={0.6} />
-                  <text x={pad.left - 6} y={t.y} textAnchor="end" dominantBaseline="middle" className="fill-current text-[10px] md:text-[11px] tabular-nums" opacity={0.8}>
+                  {effAxisMode === "full" && (
+                    <line x1={pad.left - 4} x2={pad.left} y1={t.y} y2={t.y} className="stroke-current" opacity={0.6} vectorEffect="non-scaling-stroke" />
+                  )}
+                  <text x={pad.left - 6} y={t.y} textAnchor="end" dominantBaseline="middle" className="fill-current font-normal text-[9px] md:text-[10px] tabular-nums" opacity={0.5}>
                     {t.v}
                   </text>
                   {/* Light gridline */}
-                  {showGrid && <line x1={pad.left} x2={vb.w - pad.right} y1={t.y} y2={t.y} className="stroke-current" opacity={0.06} />}
+                  {effAxisMode === "full" && showGrid && (
+                    <line x1={pad.left} x2={vb.w - pad.right} y1={t.y} y2={t.y} className="stroke-current" opacity={0.06} vectorEffect="non-scaling-stroke" />
+                  )}
                 </g>
               ))}
             </g>
           )}
 
-          {/* X axis ticks and labels (days) */}
-          {effAxisMode === "full" && (
+          {/* X axis tick labels (days). For 'labels', render only text; for 'full', include tick marks. */}
+          {(effAxisMode === "full" || effAxisMode === "labels") && (
             <g className="text-xs fill-current stroke-current">
               {xTicks.map((t, idx) => (
-                <g key={`x-${idx}`}> 
-                  <line x1={t.x} x2={t.x} y1={vb.h - pad.bottom} y2={vb.h - pad.bottom + 4} className="stroke-current" opacity={0.6} />
-                  <text x={t.x} y={vb.h - pad.bottom + 14} textAnchor="middle" className="fill-current text-[10px] md:text-[11px] tabular-nums" opacity={0.8}>
+                <g key={`x-${idx}`}>
+                  {effAxisMode === "full" && (
+                    <line x1={t.x} x2={t.x} y1={vb.h - pad.bottom} y2={vb.h - pad.bottom + 4} className="stroke-current" opacity={0.6} vectorEffect="non-scaling-stroke" />
+                  )}
+                  <text
+                    x={t.x}
+                    y={vb.h - pad.bottom + 18}
+                    textAnchor={idx === 0 ? "start" : idx === xTicks.length - 1 ? "end" : "middle"}
+                    className="fill-current font-normal text-[8px] md:text-[10px] tabular-nums"
+                    opacity={0.5}
+                    dx={idx === 0 ? 4 : idx === xTicks.length - 1 ? -4 : 0}
+                  >
                     {t.label}
                   </text>
                 </g>
@@ -215,7 +272,7 @@ export default function MiniLineChart({
 
           {/* Chart path */}
           {sorted.length > 1 && (
-            <path d={pathD} className="fill-none stroke-current" strokeWidth={strokeWidth} />
+            <path d={pathD} className="fill-none stroke-current" strokeWidth={strokeWidth} opacity={0.85} vectorEffect="non-scaling-stroke" />
           )}
 
           {/* Draw point markers */}
@@ -226,6 +283,7 @@ export default function MiniLineChart({
               cy={scaleY(p.value)}
               r={pointRadius}
               className="fill-current"
+              opacity={0.85}
             >
               <title>{`${p.value.toFixed(1)} on ${String(p.date.getMonth() + 1).padStart(2, "0")}-${String(p.date.getDate()).padStart(2, "0")}`}</title>
             </circle>
@@ -271,6 +329,7 @@ export default function MiniLineChart({
                     y2={vb.h - pad.bottom}
                     className="stroke-current"
                     opacity={0.2}
+                    vectorEffect="non-scaling-stroke"
                   />
                   {/* Highlight dot */}
                   <circle

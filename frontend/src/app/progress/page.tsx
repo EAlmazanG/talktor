@@ -13,6 +13,23 @@ function toDayKey(d: Date) {
   return `${y}-${m}-${dd}`;
 }
 
+// Convert a YYYY-MM-DD key into a local-midnight Date to align with chart day ticks
+function dayKeyToLocalDate(key: string): Date {
+  const [ys, ms, ds] = key.split("-");
+  const y = parseInt(ys, 10);
+  const m = parseInt(ms, 10);
+  const d = parseInt(ds, 10);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+// Compute a [start,end] domain for the last N days inclusive, aligned to local midnight
+function lastNDaysDomain(n: number): [Date, Date] {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - Math.max(0, n - 1));
+  return [start, end];
+}
+
 function parseISO(x?: string | null): Date | null {
   if (!x) return null;
   const d = new Date(x);
@@ -102,7 +119,7 @@ export default function ProgressPage() {
 
     const averageMapToPoints = (m: Record<string, number[]>) => {
       return Object.entries(m)
-        .map(([k, arr]) => ({ date: new Date(k), value: arr.reduce((a, b) => a + b, 0) / Math.max(1, arr.length) }))
+        .map(([k, arr]) => ({ date: dayKeyToLocalDate(k), value: arr.reduce((a, b) => a + b, 0) / Math.max(1, arr.length) }))
         .sort((a, b) => a.date.getTime() - b.date.getTime());
     };
 
@@ -118,6 +135,22 @@ export default function ProgressPage() {
     return { overallPoints: overall, pillarPoints: pillars };
   }, [sessions, summaries]);
 
+  // Default visible window: last 14 days including today (local time)
+  const [xStart, xEnd] = lastNDaysDomain(14);
+  const inWindow = (p: ChartPoint) => {
+    const t = p.date.getTime();
+    return t >= xStart.getTime() && t <= xEnd.getTime();
+  };
+  const overallWindow = useMemo(() => overallPoints.filter(inWindow), [overallPoints, xStart.getTime(), xEnd.getTime()]);
+  const pillarsWindow = useMemo(() => ({
+    pronunciation: pillarPoints.pronunciation.filter(inWindow),
+    fluency: pillarPoints.fluency.filter(inWindow),
+    grammar: pillarPoints.grammar.filter(inWindow),
+    expressions: pillarPoints.expressions.filter(inWindow),
+    vocabulary: pillarPoints.vocabulary.filter(inWindow),
+    comprehension: pillarPoints.comprehension.filter(inWindow),
+  }), [pillarPoints, xStart.getTime(), xEnd.getTime()]);
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -130,28 +163,27 @@ export default function ProgressPage() {
       <section>
         <MiniLineChart
           title="Overall evolution"
-          points={overallPoints}
+          points={overallWindow}
           yDomain={[0, 10]}
-          className="text-gray-900 dark:text-gray-100"
-          heightPx={300}
-          autoY={true}
+          xDomain={[xStart, xEnd]}
+          className="text-gray-700 dark:text-gray-300"
+          heightPx={240}
+          autoY={false}
           yPadding={0}
           minYRange={0.02}
-          strokeWidth={2}
-          pointRadius={3}
-          axisMode="lines"
+          axisMode="labels"
           axisOpacity={0.05}
         />
       </section>
 
       {/* Pillars: 2 per row, 3 rows */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        <MiniLineChart title="Pronunciation" points={pillarPoints.pronunciation} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
-        <MiniLineChart title="Fluency" points={pillarPoints.fluency} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
-        <MiniLineChart title="Grammar" points={pillarPoints.grammar} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
-        <MiniLineChart title="Expressions" points={pillarPoints.expressions} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
-        <MiniLineChart title="Vocabulary" points={pillarPoints.vocabulary} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
-        <MiniLineChart title="Comprehension" points={pillarPoints.comprehension} yDomain={[0, 10]} className="text-gray-900 dark:text-gray-100" heightPx={150} axisMode="lines" axisOpacity={0.1} />
+        <MiniLineChart title="Pronunciation" points={pillarsWindow.pronunciation} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Fluency" points={pillarsWindow.fluency} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Grammar" points={pillarsWindow.grammar} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Expressions" points={pillarsWindow.expressions} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Vocabulary" points={pillarsWindow.vocabulary} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
+        <MiniLineChart title="Comprehension" points={pillarsWindow.comprehension} yDomain={[0, 10]} xDomain={[xStart, xEnd]} className="text-gray-700 dark:text-gray-300" heightPx={140} autoY={false} axisMode="labels" axisOpacity={0.08} />
       </section>
 
       {!loading && sessions.length === 0 && (
