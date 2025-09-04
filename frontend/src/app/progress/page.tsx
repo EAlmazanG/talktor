@@ -42,44 +42,48 @@ export default function ProgressPage() {
   const [sessions, setSessions] = useState<UserSessionsResponse["sessions"]>([]);
   const [summaries, setSummaries] = useState<Record<string, FeedbackSummaryResponse>>({});
 
+  // Load sessions and summaries (reusable so we can wire a Refresh button)
+  const fetchProgress = async (isMounted?: () => boolean) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // 1) Fetch sessions (all pages)
+      const res = await getAllUserSessions();
+      if (isMounted && !isMounted()) return;
+      const filtered = (res.sessions || []).filter((row) => {
+        const dur = row.session?.duration_seconds || 0;
+        return dur >= 30 && row.has_feedback;
+      });
+      setSessions(filtered);
+
+      // 2) Fetch summaries for qualifying sessions in parallel
+      const pairs = await Promise.all(
+        filtered.map(async (row) => {
+          try {
+            const sId = row.session.session_id;
+            const s = await getFeedbackSummary(sId);
+            return [sId, s] as const;
+          } catch (_) {
+            return null;
+          }
+        })
+      );
+      if (isMounted && !isMounted()) return;
+      const map: Record<string, FeedbackSummaryResponse> = {};
+      for (const p of pairs) if (p) map[p[0]] = p[1];
+      setSummaries(map);
+    } catch (e: any) {
+      if (isMounted && !isMounted()) return;
+      setError(e?.message || "Failed to load progress");
+    } finally {
+      if (isMounted && !isMounted()) return;
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // 1) Fetch sessions (all pages)
-        const res = await getAllUserSessions();
-        if (!mounted) return;
-        const filtered = (res.sessions || []).filter((row) => {
-          const dur = row.session?.duration_seconds || 0;
-          return dur >= 30 && row.has_feedback;
-        });
-        setSessions(filtered);
-
-        // 2) Fetch summaries for qualifying sessions in parallel
-        const pairs = await Promise.all(
-          filtered.map(async (row) => {
-            try {
-              const sId = row.session.session_id;
-              const s = await getFeedbackSummary(sId);
-              return [sId, s] as const;
-            } catch (_) {
-              return null;
-            }
-          })
-        );
-        if (!mounted) return;
-        const map: Record<string, FeedbackSummaryResponse> = {};
-        for (const p of pairs) if (p) map[p[0]] = p[1];
-        setSummaries(map);
-      } catch (e: any) {
-        if (!mounted) return;
-        setError(e?.message || "Failed to load progress");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
+    void fetchProgress(() => mounted);
     return () => {
       mounted = false;
     };
@@ -153,8 +157,23 @@ export default function ProgressPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Progress</h1>
+      <div className="flex items-center">
+        <div className="inline-flex items-center gap-2 rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-1 text-[11px] md:text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-200">
+          <span className="h-1.5 w-1.5 rounded-full bg-gray-500/60 dark:bg-gray-300/60" />
+          <span>Overall</span>
+        </div>
+        <button
+          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+          onClick={() => fetchProgress()}
+          disabled={loading}
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.37 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
 
       {error && <div className="text-sm text-rose-600">{error}</div>}
@@ -175,6 +194,11 @@ export default function ProgressPage() {
           axisOpacity={0.05}
         />
       </section>
+
+      <div className="inline-flex items-center gap-2 rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-1 text-[11px] md:text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-200">
+        <span className="h-1.5 w-1.5 rounded-full bg-gray-500/60 dark:bg-gray-300/60" />
+        <span>Pillars</span>
+      </div>
 
       {/* Pillars: 2 per row, 3 rows */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
