@@ -16,6 +16,7 @@ This README is scoped to v0.1 MVP and intentionally keeps security/testing light
 ## Table of Contents
 
 - [Key Features](#key-features)
+- [Application Screenshots](#application-screenshots)
 - [MVP Scope (v0.1)](#mvp-scope-v01)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
@@ -25,7 +26,6 @@ This README is scoped to v0.1 MVP and intentionally keeps security/testing light
 - [API Overview](#api-overview)
 - [Realtime (WebSocket) – Voice or Text](#realtime-websocket--voice-or-text)
 - [Frontend (Next.js)](#frontend-nextjs)
-- [Application Screenshots](#application-screenshots)
 - [Data & Persistence (MVP)](#data--persistence-mvp)
 - [Known Limitations (v0.1)](#known-limitations-v01)
 - [Troubleshooting](#troubleshooting)
@@ -40,6 +40,36 @@ This README is scoped to v0.1 MVP and intentionally keeps security/testing light
 - Minimal, modern Next.js frontend to start practice and review feedback/progress.
 - Centralized logging with CLI tools to list, tail, search, and follow logs.
 - Dockerized developer experience and one-command local production.
+
+
+## Application Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="images/practice.png" alt="Practice - Realtime Conversation" width="100%"/>
+      <br/>
+      <sub>Practice: Realtime conversation view</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="images/learn.png" alt="Learn - Sessions and Feedback" width="100%"/>
+      <br/>
+      <sub>Learn: Sessions list and feedback summary</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="images/progress.png" alt="Progress - Charts and Trends" width="100%"/>
+      <br/>
+      <sub>Progress: Pillar trends and overall evolution</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="images/details.png" alt="Feedback Details - Full Structured Feedback" width="100%"/>
+      <br/>
+      <sub>Feedback Details: Full structured feedback (general + pillars)</sub>
+    </td>
+  </tr>
+</table>
 
 ## MVP Scope (v0.1)
 
@@ -254,35 +284,6 @@ npm run dev
 
 Pages (see `docs/FRONTEND.md`): Practice (realtime), Learn (sessions + feedback), Progress (charts), Config (local user settings).
 
-
-## Application Screenshots
-
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="images/practice.png" alt="Practice - Realtime Conversation" width="100%"/>
-      <br/>
-      <sub>Practice: Realtime conversation view</sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="images/learn.png" alt="Learn - Sessions and Feedback" width="100%"/>
-      <br/>
-      <sub>Learn: Sessions list and feedback summary</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <img src="images/progress.png" alt="Progress - Charts and Trends" width="100%"/>
-      <br/>
-      <sub>Progress: Pillar trends and overall evolution</sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="images/details.png" alt="Feedback Details - Full Structured Feedback" width="100%"/>
-      <br/>
-      <sub>Feedback Details: Full structured feedback (general + pillars)</sub>
-    </td>
-  </tr>
-</table>
 
 ## Logging
 
