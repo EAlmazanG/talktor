@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Read VERSION and tag
+        id: vars
+        run: |
+          TAG_REF="${GITHUB_REF_NAME}"
+          echo "tag=${TAG_REF}" >> $GITHUB_OUTPUT
+          VERSION_FILE=$(cat VERSION | tr -d '\n' | tr -d '\r')
+          echo "version=${VERSION_FILE}" >> $GITHUB_OUTPUT
+          # Strip leading 'v' from tag for comparison
+          TAG_VERSION=${TAG_REF#v}
+          echo "tag_version=${TAG_VERSION}" >> $GITHUB_OUTPUT
+      - name: Ensure tag matches VERSION
+        run: |
+          if [ "${{ steps.vars.outputs.tag_version }}" != "${{ steps.vars.outputs.version }}" ]; then
+            echo "Tag (${{ steps.vars.outputs.tag_version }}) does not match VERSION file (${{ steps.vars.outputs.version }})" >&2
+            exit 1
+          fi
+      - name: Ensure CHANGELOG has section
+        run: |
+          ver="${{ steps.vars.outputs.version }}"
+          if ! grep -q "^## \[${ver}\]" CHANGELOG.md; then
+            echo "CHANGELOG.md missing section for ${ver}" >&2
+            exit 1
+          fi
+
+  create-release:
+    needs: validate-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          ver=$(cat VERSION | tr -d '\n' | tr -d '\r')
+          awk -v ver="$ver" '
+            BEGIN{insection=0}
+            /^## \[/ {
+              if (insection) exit
+            }
+            $0 ~ "^## \\[" ver "\\]" {insection=1; next}
+            insection { print }
+          ' CHANGELOG.md | sed '/^$/N;/^\n$/D' > RELEASE_NOTES.md
+          echo "Release notes preview:" && head -n 40 RELEASE_NOTES.md || true
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
