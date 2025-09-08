@@ -1,5 +1,15 @@
 openai_setup.py
 .DS_Store
 *.pyc
+# Virtual environments (do not commit)
+.venv/
 talktor-env/
 /talktor-env
+.env
+
+# Log files
+*.log
+logs/*.log
+backend/logs/*.log
+!logs/.gitkeep
+!backend/logs/.gitkeep

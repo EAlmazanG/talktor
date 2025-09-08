@@ -1,0 +1,443 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import { endConversation, getFeedbackSummary, getFeedback, startConversation, getUserId, type FeedbackSummaryResponse, type FeedbackResponse } from "@/lib/api";
+import { openRealtimeWebSocket, type RealtimeClient } from "@/lib/ws";
+import { startMicStreaming, createAiAudioPlayer, type MicStreamController, type AiAudioPlayer } from "@/lib/audio";
+import AiRadialVisualizer from "@/components/AiRadialVisualizer";
+import FeedbackDetails from "@/components/FeedbackDetails";
+
+export default function PracticePage() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [aiMessage, setAiMessage] = useState("");
+  const clientRef = useRef<RealtimeClient | null>(null);
+  const micRef = useRef<MicStreamController | null>(null);
+  const playerRef = useRef<AiAudioPlayer | null>(null);
+  const [ended, setEnded] = useState(false);
+  const [feedback, setFeedback] = useState<FeedbackSummaryResponse | null>(null);
+  const [fullFeedback, setFullFeedback] = useState<FeedbackResponse | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const typingTimerRef = useRef<number | null>(null);
+  const levelTimerRef = useRef<number | null>(null);
+  const levelSmoothRef = useRef(0);
+  const [aiLevel, setAiLevel] = useState(0);
+  const micLevelRef = useRef(0);
+  const [messageOpacity, setMessageOpacity] = useState(1);
+  const fadeTimerRef = useRef<number | null>(null);
+  const [suppressPlaceholder, setSuppressPlaceholder] = useState(false);
+
+  const canStart = useMemo(() => !connecting && !connected && !sessionId, [connecting, connected, sessionId]);
+  const canEnd = useMemo(() => connected && !!sessionId && !ended, [connected, sessionId, ended]);
+
+  const controlsClass = useMemo(() => {
+    const base = "flex items-center gap-3 transition-all duration-1000 ease-out";
+    if (connecting || connected) {
+      return base + " -translate-y-2 md:-translate-y-3 mb-16 md:mb-20";
+    }
+    return base + " mb-8";
+  }, [connecting, connected]);
+
+  const stopTyping = () => {
+    if (typingTimerRef.current != null) {
+      window.clearInterval(typingTimerRef.current);
+      typingTimerRef.current = null;
+    }
+  };
+
+  const startTyping = (text: string) => {
+    stopTyping();
+    setAiMessage("");
+    let i = 0;
+    const step = 1; // slightly slower typing: 1 char per tick
+    // Reset fade/suppression for a new message
+    setSuppressPlaceholder(false);
+    setMessageOpacity(1);
+    if (fadeTimerRef.current != null) {
+      window.clearInterval(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
+    typingTimerRef.current = window.setInterval(() => {
+      i += step;
+      setAiMessage(text.slice(0, i));
+      if (i >= text.length) {
+        stopTyping();
+        // After finishing, start a gradual fade unless it's the farewell message
+        if (text.trim() !== "See you soon!") {
+          // Begin with slow fade; will accelerate when mic input is detected
+          if (fadeTimerRef.current != null) {
+            window.clearInterval(fadeTimerRef.current);
+          }
+          setSuppressPlaceholder(true);
+          setMessageOpacity(1);
+          fadeTimerRef.current = window.setInterval(() => {
+            setMessageOpacity((prev) => {
+              const dec = micLevelRef.current > 0.15 ? 0.09 : 0.03; // 2x slower fade; accelerate on voice
+              const next = Math.max(0, prev - dec);
+              if (next === 0) {
+                if (fadeTimerRef.current != null) {
+                  window.clearInterval(fadeTimerRef.current);
+                  fadeTimerRef.current = null;
+                }
+                // Clear message to keep the area blank for the next transcript
+                setAiMessage("");
+              }
+              return next;
+            });
+          }, 100);
+        }
+      }
+    }, 30); // ~33 chars/second
+  };
+
+  const stopLevelTimer = () => {
+    if (levelTimerRef.current != null) {
+      window.clearInterval(levelTimerRef.current);
+      levelTimerRef.current = null;
+    }
+  };
+
+  const startLevelTimer = () => {
+    stopLevelTimer();
+    levelSmoothRef.current = 0;
+    levelTimerRef.current = window.setInterval(() => {
+      const lv = playerRef.current?.getLevel?.() ?? 0;
+      // Exponential smoothing to avoid flicker (slower response)
+      levelSmoothRef.current = levelSmoothRef.current * 0.9 + lv * 0.1;
+      setAiLevel(levelSmoothRef.current);
+    }, 33); // ~30fps
+  };
+
+  const reset = useCallback(() => {
+    clientRef.current?.close();
+    clientRef.current = null;
+    try { micRef.current?.stop(); } catch {}
+    micRef.current = null;
+    if (playerRef.current) {
+      playerRef.current.clear();
+      // do not close the AudioContext to allow reuse; but we can close to free resources
+      // void playerRef.current.close();
+    }
+    setSessionId(null);
+    setWsUrl(null);
+    setConnecting(false);
+    setConnected(false);
+    setError(null);
+    setAiMessage("");
+    setEnded(false);
+    setFeedback(null);
+    setFullFeedback(null);
+    setDetailsOpen(false);
+    setDetailsLoading(false);
+    setDetailsError(null);
+    stopTyping();
+    stopLevelTimer();
+    levelSmoothRef.current = 0;
+    setAiLevel(0);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clientRef.current?.close();
+      try { micRef.current?.stop(); } catch {}
+      micRef.current = null;
+      if (playerRef.current) {
+        // Close audio player resources on unmount
+        void playerRef.current.close();
+        playerRef.current = null;
+      }
+      stopLevelTimer();
+      if (fadeTimerRef.current != null) {
+        window.clearInterval(fadeTimerRef.current);
+        fadeTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleStart = async () => {
+    setError(null);
+    setAiMessage("");
+    setConnecting(true);
+    try {
+      const res = await startConversation();
+      setSessionId(res.session_id);
+      setWsUrl(res.websocket_url);
+
+      // Ensure an AI audio player exists for playback
+      if (!playerRef.current) {
+        playerRef.current = createAiAudioPlayer();
+      } else {
+        playerRef.current.clear();
+      }
+      // Start polling AI playback level for visualization
+      startLevelTimer();
+
+      const client = openRealtimeWebSocket(res.websocket_url, {
+        onOpen: () => {
+          setConnected(true);
+          // Start microphone streaming once the socket is open
+          void startMicStreaming(client, {
+            onLevel: (lv: number) => {
+              micLevelRef.current = lv;
+            },
+          })
+            .then((ctrl) => {
+              micRef.current = ctrl;
+            })
+            .catch((e: any) => {
+              setError(`Microphone error: ${e?.message || "permission or device issue"}`);
+            });
+        },
+        onClose: () => {
+          setConnected(false);
+          try { micRef.current?.stop(); } catch {}
+          micRef.current = null;
+          stopLevelTimer();
+          micLevelRef.current = 0;
+        },
+        onError: () => setError("WebSocket error"),
+        // Only show the latest completed AI message (no streaming text)
+        onUserDelta: () => {},
+        onUserCompleted: () => {},
+        onAiDelta: () => {},
+        onAiCompleted: (t) => startTyping(t),
+        onPlaybackClear: () => {
+          // Clear buffered AI audio when barge-in or end requested
+          playerRef.current?.clear();
+          // Drop level immediately
+          levelSmoothRef.current = 0;
+          setAiLevel(0);
+        },
+        onEnded: async () => {
+          setEnded(true);
+          try { micRef.current?.stop(); } catch {}
+          micRef.current = null;
+          stopLevelTimer();
+          micLevelRef.current = 0;
+          // Farewell message with subtle fade-up
+          startTyping("See you soon!");
+          // Try to fetch feedback summary if available
+          try {
+            const sid = res.session_id;
+            const summary = await getFeedbackSummary(sid);
+            setFeedback(summary || null);
+            setFullFeedback(null);
+            setDetailsOpen(false);
+            setDetailsLoading(false);
+            setDetailsError(null);
+          } catch (_) {
+            // ignore
+          }
+        },
+        onBinaryAudio: (bytes) => {
+          // Feed AI PCM16 bytes for playback
+          playerRef.current?.feedPcm16(bytes);
+        },
+        onGeneric: () => {},
+      });
+
+      clientRef.current = client;
+    } catch (e: any) {
+      setError(e?.message || "Failed to start conversation");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleEnd = async () => {
+    if (!clientRef.current || !sessionId) return;
+    try {
+      try { micRef.current?.stop(); } catch {}
+      micRef.current = null;
+      // Show farewell immediately
+      startTyping("See you soon!");
+      clientRef.current.end();
+      await endConversation(sessionId);
+      setEnded(true);
+      stopLevelTimer();
+      micLevelRef.current = 0;
+      // Also refetch summary after explicit end
+      try {
+        const summary = await getFeedbackSummary(sessionId);
+        setFeedback(summary || null);
+      } catch (_) {}
+    } catch (e: any) {
+      setError(e?.message || "Failed to end conversation");
+    }
+  };
+
+  return (
+    <div className="relative min-h-[70vh] flex flex-col items-center justify-center">
+      {/* Crossfade between logo and radial visualizer */}
+      <div className="w-full flex items-center justify-center mb-8 md:mb-10">
+        <div className="relative" style={{ width: 220, height: 220 }}>
+          <AiRadialVisualizer
+            player={playerRef.current}
+            size={220}
+            level={aiLevel}
+            className={`absolute inset-0 transition-opacity ease-out ${
+              connecting || connected ? "opacity-100" : "opacity-0"
+            }`}
+            style={{ transition: "opacity 2500ms ease-out" }}
+          />
+          <Image
+            src="/assets/icons/talktor.png"
+            alt="Talktor"
+            width={200}
+            height={200}
+            priority
+            className={`absolute inset-0 m-auto transition-opacity ease-out ${
+              connecting || connected ? "opacity-0" : "opacity-100"
+            }`}
+            style={{ transition: "opacity 2500ms ease-out" }}
+          />
+        </div>
+      </div>
+
+      {/* Status panel (bottom-right, minimal) */}
+      <div className="fixed bottom-4 right-4 text-[11px] md:text-xs text-gray-500 dark:text-gray-400 opacity-80">
+        <div className="flex items-center gap-2">
+          <span>WS: {connected ? "connected" : connecting ? "connecting" : "disconnected"}</span>
+          <span>•</span>
+          <span>Mic: {micRef.current ? "on" : "off"}</span>
+          <span>•</span>
+          <span>Ended: {ended ? "yes" : "no"}</span>
+        </div>
+        <div className="font-mono opacity-70">Session: {sessionId ?? "—"}</div>
+        <div className="font-mono opacity-70">{getUserId()}</div>
+        {error && <div className="text-rose-500">{error}</div>}
+      </div>
+
+      {/* Controls: Start + End centered; Reset immediately to the right (does not affect centering) */}
+      <div className="w-full flex items-center justify-center">
+        <div
+          className={controlsClass + " justify-center relative flex-nowrap"}
+          style={{ transitionDuration: "2000ms" }}
+        >
+          <div className="inline-flex items-center gap-3 flex-nowrap">
+            <button
+              className={`px-5 py-2.5 rounded-full text-sm transition-colors ${
+                canStart
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
+                  : "bg-gray-300 text-gray-500 font-normal"
+              } disabled:cursor-not-allowed`}
+              onClick={handleStart}
+              disabled={!canStart}
+            >
+              Start Conversation
+            </button>
+            <button
+              className={`px-5 py-2.5 rounded-full text-sm transition-colors ${
+                canEnd
+                  ? "bg-rose-600 text-white hover:bg-rose-700 font-semibold"
+                  : "bg-gray-300 text-gray-500 font-normal"
+              } disabled:cursor-not-allowed`}
+              onClick={handleEnd}
+              disabled={!canEnd}
+            >
+              End Conversation
+            </button>
+          </div>
+          <button
+            className="px-4 py-2 rounded-full text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white underline-offset-4 hover:underline transition-colors absolute left-full ml-3 top-1/2 -translate-y-1/2"
+            onClick={reset}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {/* Centered AI message (clean, no frames) */}
+      <div className="w-full max-w-3xl px-4">
+        <div
+          className={
+            "text-center text-xl md:text-2xl font-light leading-relaxed text-gray-900 dark:text-gray-100 transition-all duration-300 ease-out " +
+            (ended ? "opacity-70 -translate-y-1 md:-translate-y-2" : "")
+          }
+          style={aiMessage.trim() === "See you soon!" ? undefined : { opacity: messageOpacity }}
+        >
+          {aiMessage || (suppressPlaceholder ? "" : connected ? "Listening..." : "Press Start to begin")}
+        </div>
+      </div>
+
+      {/* Feedback after end (clean, spaced, includes scores and inline details) */}
+      {ended && (
+        <div className="mt-10 w-full max-w-3xl px-4 space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-1 text-[11px] md:text-xs font-medium uppercase tracking-wide text-gray-700 dark:text-gray-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-gray-500/60 dark:bg-gray-300/60" />
+            <span>Feedback</span>
+          </div>
+          {feedback ? (
+            <>
+              <div className="text-base font-light whitespace-pre-wrap text-gray-900 dark:text-gray-100">
+                {feedback.general_summary || "No summary available."}
+              </div>
+              {(feedback.overall_score != null || feedback.pillar_scores) && (
+                <div className="space-y-2">
+                  {feedback.overall_score != null && (
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      Overall score: <span className="font-medium text-gray-900 dark:text-gray-100">{feedback.overall_score}</span>
+                    </div>
+                  )}
+                  {feedback.pillar_scores && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-1 gap-x-4 text-sm text-gray-600 dark:text-gray-300">
+                      {Object.entries(feedback.pillar_scores).map(([pillar, score]) => (
+                        <div key={pillar} className="flex items-center justify-between">
+                          <span className="capitalize">{pillar}</span>
+                          <span className="font-mono text-gray-900 dark:text-gray-100">{score as any}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="flex justify-center">
+                <button
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-black/10 dark:border-white/10 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  onClick={async () => {
+                    const opening = !detailsOpen;
+                    setDetailsOpen(opening);
+                    if (opening && !fullFeedback) {
+                      const sid = sessionId || (feedback as any)?.session_id;
+                      if (!sid) return;
+                      setDetailsLoading(true);
+                      setDetailsError(null);
+                      try {
+                        const res = await getFeedback(sid);
+                        setFullFeedback(res || null);
+                      } catch (e: any) {
+                        setDetailsError(e?.message || "Failed to load details");
+                      } finally {
+                        setDetailsLoading(false);
+                      }
+                    }
+                  }}
+                >
+                  {detailsOpen ? "Hide details" : "Show details"}
+                </button>
+              </div>
+              {detailsOpen && (
+                <div className="pt-2 space-y-2">
+                  {detailsLoading && <div className="text-sm text-gray-600 dark:text-gray-300">Loading details...</div>}
+                  {detailsError && <div className="text-sm text-rose-600">{detailsError}</div>}
+                  {fullFeedback && <FeedbackDetails feedback={fullFeedback} />}
+                  {!detailsLoading && !detailsError && !fullFeedback && (
+                    <div className="text-sm text-gray-600 dark:text-gray-300">No details available.</div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-sm font-light text-gray-600 dark:text-gray-300">No summary available yet.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

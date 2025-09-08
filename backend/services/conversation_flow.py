@@ -1,0 +1,190 @@
+"""
+Conversation Flow Service - Integrates RealtimeAgent → StandardAgent → Database
+"""
+import asyncio
+import uuid
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional, List
+import logging
+
+from core.logging import get_logger
+from core.colors import colorize, Colors
+# Import RealtimeAgent lazily to avoid circular imports
+from agents.standard_agent import StandardAgent
+from services.persistence_service import persistence_service
+from db.models import AgentType, ConversationMode
+
+logger = get_logger(__name__)
+
+
+class ConversationFlow:
+    """
+    Orchestrates the complete conversation flow:
+    1. RealtimeAgent handles voice conversation
+    2. Database persistence for session and transcripts
+    """
+    
+    def __init__(self, user_id: str = "test_user"):
+        self.user_id = user_id
+        self.session_id = None
+        self.realtime_agent = None
+        self.standard_agent = StandardAgent()
+        
+        # Use centralized persistence service
+        self.persistence = persistence_service
+        
+        logger.info(f"🔄 ConversationFlow initialized for user: {user_id}")
+    
+    async def start_conversation(self, session_id: str = None) -> str:
+        """Start a new conversation session"""
+        try:
+            # Generate session ID if not provided
+            if not session_id:
+                session_id = str(uuid.uuid4())
+            
+            self.session_id = session_id
+            
+            # Create database session record using persistence service
+            # Use a managed DB transaction to satisfy PersistenceService API
+            with self.persistence.get_db_transaction() as db:
+                self.persistence.create_session(
+                    db=db,
+                    session_id=session_id,
+                    user_id=self.user_id,
+                    agent_type=AgentType.REALTIME,
+                    mode=ConversationMode.FREE_TOPIC  # Updated to use existing enum
+                )
+            
+            # Initialize RealtimeAgent (lazy import to avoid circular imports)
+            from agents.realtime_agent import RealtimeAgent
+            self.realtime_agent = RealtimeAgent(session_id=session_id, user_id=self.user_id)
+            
+            # Start the conversation
+            logger.info(colorize(f"🚀 Starting conversation flow for session: {session_id}", Colors.BRIGHT_GREEN))
+            await self.realtime_agent.start()
+            
+            return session_id
+            
+        except Exception as e:
+            logger.error(f"❌ Error starting conversation: {e}")
+            raise
+    
+    async def end_conversation(self) -> Dict[str, Any]:
+        """End the conversation and process everything"""
+        try:
+            if not self.session_id or not self.realtime_agent:
+                raise ValueError("No active conversation to end")
+            
+            logger.info(colorize(f"🛑 Ending conversation: {self.session_id}", Colors.BRIGHT_YELLOW))
+            
+            # Get conversation summary from RealtimeAgent
+            conversation_summary = self.realtime_agent.get_session_info()
+            
+            # Extract conversation data
+            conversation_text = conversation_summary.get("conversation_text", "")
+            messages = conversation_summary.get("messages", [])
+            duration = conversation_summary.get("duration_seconds", 0)
+            conversation_json = conversation_summary.get("conversation_json", {})
+            
+            logger.info(f"📊 Conversation summary: {len(messages)} messages, {duration}s duration")
+            
+            # Check for conversation feedback from the RealtimeAgent
+            feedback_data = None
+            conversation_feedback = conversation_summary.get("conversation_feedback")
+            
+            if conversation_feedback:
+                logger.info("✅ Found conversation feedback from RealtimeAgent")
+                feedback_data = {
+                    "resumen": conversation_feedback.get("resumen", ""),
+                    "feedback": conversation_feedback.get("feedback", ""),
+                    "timestamp": conversation_feedback.get("timestamp", datetime.now().isoformat()),
+                    "source": "realtime_agent"
+                }
+            
+            # Skip database persistence - just prepare the results
+            result = {
+                "summary": {
+                    "session_id": self.session_id,
+                    "user_id": self.user_id,
+                    "message_count": len(messages),
+                    "duration": duration
+                },
+                "feedback": feedback_data
+            }
+            
+            logger.info("⚠️ Database persistence skipped as requested")
+            
+            # Prepare final results
+            results = {
+                "session_id": self.session_id,
+                "user_id": self.user_id,
+                "duration_seconds": duration,
+                "message_count": len(messages),
+                "conversation_text": conversation_text,
+                "feedback": feedback_data,
+                "status": "completed",
+                "database_result": result["summary"]
+            }
+            
+            logger.info(colorize(f"✅ Conversation flow completed successfully: {self.session_id}", Colors.BRIGHT_GREEN))
+            return results
+            
+        except Exception as e:
+            logger.error(f"❌ Error ending conversation: {e}")
+            raise
+    
+
+    
+    # The _generate_feedback method has been removed as feedback generation is no longer
+    # handled by the RealtimeAgent
+    
+
+    
+    def is_active(self) -> bool:
+        """Check if conversation is active"""
+        return (self.realtime_agent is not None and 
+                self.realtime_agent.is_active() and 
+                self.session_id is not None)
+    
+    async def cleanup(self):
+        """Cleanup resources"""
+        try:
+            if self.realtime_agent:
+                # The realtime agent should handle its own cleanup
+                pass
+            
+            self.session_id = None
+            self.realtime_agent = None
+            logger.info("🧹 ConversationFlow cleanup completed")
+            
+        except Exception as e:
+            logger.error(f"❌ Error during cleanup: {e}")
+
+
+# Convenience function for simple usage
+async def run_complete_conversation_flow(user_id: str = "test_user", session_id: str = None) -> Dict[str, Any]:
+    """
+    Run a complete conversation flow from start to finish
+    This is a convenience function for testing and simple usage
+    """
+    flow = ConversationFlow(user_id=user_id)
+    
+    try:
+        # Start conversation
+        actual_session_id = await flow.start_conversation(session_id)
+        
+        # Wait for conversation to end (this will block until user terminates)
+        # In practice, this would be handled by the RealtimeAgent's termination logic
+        while flow.is_active():
+            await asyncio.sleep(1)
+        
+        # Process the ended conversation
+        results = await flow.end_conversation()
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"❌ Error in conversation flow: {e}")
+        raise
+    finally:
+        await flow.cleanup()

@@ -1,0 +1,14 @@
+declare module "audiomotion-analyzer" {
+  const AudioMotionAnalyzer: any;
+  export default AudioMotionAnalyzer;
+}
+
+declare module "audiomotion-analyzer/src/audioMotion-analyzer.js" {
+  const AudioMotionAnalyzer: any;
+  export default AudioMotionAnalyzer;
+}
+
+declare module "audiomotion-analyzer/dist" {
+  const AudioMotionAnalyzer: any;
+  export default AudioMotionAnalyzer;
+}
