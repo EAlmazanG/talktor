@@ -13,6 +13,40 @@ Personal English-tutoring assistant for 5–10 minute practice conversations wit
 
 This README is scoped to v0.1 MVP and intentionally keeps security/testing light for speed of delivery.
 
+## Table of Contents
+
+- [Key Features](#key-features)
+- [MVP Scope (v0.1)](#mvp-scope-v01)
+- [Repository Structure](#repository-structure)
+- [Prerequisites](#prerequisites)
+- [Quickstart (Development)](#quickstart-development)
+- [Quickstart (Production on localhost)](#quickstart-production-on-localhost)
+- [Environment Variables](#environment-variables)
+- [API Overview](#api-overview)
+- [Realtime (WebSocket) – Voice or Text](#realtime-websocket--voice-or-text)
+- [Frontend (Next.js)](#frontend-nextjs)
+- [Application Screenshots](#application-screenshots)
+- [Data & Persistence (MVP)](#data--persistence-mvp)
+- [Known Limitations (v0.1)](#known-limitations-v01)
+- [Troubleshooting](#troubleshooting)
+- [Documentation](#documentation)
+- [License](#license)
+
+## Key Features
+
+- Realtime conversation (voice or text) with natural barge-in and clean end-of-session flow.
+- Structured feedback with overall score and 6 pillars: pronunciation, fluency, grammar, expressions, vocabulary, comprehension.
+- Persistence of sessions, transcripts, and comprehensive feedback for each session.
+- Minimal, modern Next.js frontend to start practice and review feedback/progress.
+- Centralized logging with CLI tools to list, tail, search, and follow logs.
+- Dockerized developer experience and one-command local production.
+
+## MVP Scope (v0.1)
+
+- Focus on core experience: conversation → feedback → persistence.
+- Security and extensive test coverage intentionally light for speed.
+- Manual feedback generation endpoint is a placeholder (feedback is generated via the realtime flow).
+- Dev-friendly defaults: permissive CORS, header `X-User-Id` in REST; no auth beyond that.
 
 ## Repository Structure
 
@@ -59,6 +93,14 @@ Key paths (see `docs/CONTEXT_REPOSITORY.md` for full details):
 
 
 ## Quickstart (Development)
+
+**TL;DR (Dev)**
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate && pip install -r backend/requirements.txt
+./scripts/ops/dev_start.sh
+# API http://localhost:8000 | Frontend http://localhost:3000 | pgAdmin http://localhost:5050
+```
 
 The dev workflow runs the database in Docker and the backend locally in a Python virtualenv. Frontend can be started automatically in a container (optional).
 
@@ -215,28 +257,32 @@ Pages (see `docs/FRONTEND.md`): Practice (realtime), Learn (sessions + feedback)
 
 ## Application Screenshots
 
-<div align="center">
-
-<img src="images/practice.png" alt="Practice - Realtime Conversation" width="800" />
-<br/>
-<em>Practice: Realtime conversation view</em>
-<br/><br/>
-
-<img src="images/learn.png" alt="Learn - Sessions and Feedback" width="800" />
-<br/>
-<em>Learn: Sessions list and feedback summary</em>
-<br/><br/>
-
-<img src="images/progress.png" alt="Progress - Charts and Trends" width="800" />
-<br/>
-<em>Progress: Pillar trends and overall evolution</em>
-<br/><br/>
-
-<img src="images/details.png" alt="Feedback Details - Full Structured Feedback" width="800" />
-<br/>
-<em>Feedback Details: Full structured feedback (general + pillars)</em>
-
-</div>
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="images/practice.png" alt="Practice - Realtime Conversation" width="100%"/>
+      <br/>
+      <sub>Practice: Realtime conversation view</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="images/learn.png" alt="Learn - Sessions and Feedback" width="100%"/>
+      <br/>
+      <sub>Learn: Sessions list and feedback summary</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="images/progress.png" alt="Progress - Charts and Trends" width="100%"/>
+      <br/>
+      <sub>Progress: Pillar trends and overall evolution</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="images/details.png" alt="Feedback Details - Full Structured Feedback" width="100%"/>
+      <br/>
+      <sub>Feedback Details: Full structured feedback (general + pillars)</sub>
+    </td>
+  </tr>
+</table>
 
 ## Logging
 
