@@ -1,5 +1,9 @@
 # Talktor v0.1 (MVP)
 
+<p align="center">
+  <img src="images/talktor.png" alt="Talktor" width="720" />
+</p>
+
 Personal English-tutoring assistant for 5–10 minute practice conversations with an AI tutor. The MVP provides realtime (WebSocket) or text conversation, structured feedback (scores across 6 pillars), persistence (sessions, transcripts, feedback), and a minimal Next.js frontend.
 
 - Backend: Python + FastAPI + PostgreSQL + SQLAlchemy
@@ -208,6 +212,31 @@ npm run dev
 
 Pages (see `docs/FRONTEND.md`): Practice (realtime), Learn (sessions + feedback), Progress (charts), Config (local user settings).
 
+
+## Application Screenshots
+
+<div align="center">
+
+<img src="images/practice.png" alt="Practice - Realtime Conversation" width="800" />
+<br/>
+<em>Practice: Realtime conversation view</em>
+<br/><br/>
+
+<img src="images/learn.png" alt="Learn - Sessions and Feedback" width="800" />
+<br/>
+<em>Learn: Sessions list and feedback summary</em>
+<br/><br/>
+
+<img src="images/progress.png" alt="Progress - Charts and Trends" width="800" />
+<br/>
+<em>Progress: Pillar trends and overall evolution</em>
+<br/><br/>
+
+<img src="images/details.png" alt="Feedback Details - Full Structured Feedback" width="800" />
+<br/>
+<em>Feedback Details: Full structured feedback (general + pillars)</em>
+
+</div>
 
 ## Logging
 
